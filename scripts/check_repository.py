@@ -116,7 +116,7 @@ REQUIRED = {
     "examples/discovery_preview/main.cpp", "examples/discovery_preview/CMakeLists.txt",
     "examples/discovery_preview/README.md", "docs/commissioning.md",
     "include/MotorControlCAN/Units.h", "src/Units.cpp", "test/units_test.cpp",
-    "include/MotorControlCAN/Axis.h", "src/Axis.cpp", "test/axis_test.cpp",
+    "include/MotorControlCAN/Axis.h", "src/Axis.cpp", "test/axis_test.cpp", "test/ramp_time_test.cpp",
     "examples/units_preview/CMakeLists.txt", "examples/units_preview/main.cpp", "examples/units_preview/README.md",
     "include/MotorControlCAN/can/Frame.h", "src/Endpoint.cpp", "src/can/Frame.cpp",
     "include/MotorControlCAN/canopen/Sdo.h", "src/canopen/Sdo.cpp",

@@ -205,6 +205,42 @@ struct PreparedVelocityTarget {
     bool exactArithmetic = true; ///< False for nonzero radians approximation.
     double approximateRequestedNative = 0; ///< Approximate rate when not exactArithmetic.
 };
+/** Exact acceleration or deceleration magnitude, converted by prepareRampTime into the time a
+ * speed change takes. The value is a magnitude: direction comes from the speed or position
+ * request, never from a sign here. Frames follow VelocityRequest: NATIVE means the native-rate
+ * dimension (STEPS under COMMAND_INCREMENTS, motor TURNS under MOTOR_TURNS) with velocityTime
+ * equal to nativeVelocityTime and any accelerationTime; MOTOR and LOAD convert with the axis
+ * scales. Examples: rpm/s is AccelerationUnit(TURNS, MINUTE, SECOND); mm/s^2 in the LOAD frame is
+ * AccelerationUnit(MILLIMETRES, SECOND, SECOND). Radians need pi and are refused here. */
+struct AccelerationRequest {
+    Rational value; ///< Exact magnitude; zero, negative and zero-denominator values are refused.
+    AccelerationUnit unit; ///< Spatial unit and the two time denominators of the value.
+    CoordinateFrame frame = CoordinateFrame::NATIVE; ///< Native/motor/load interpretation.
+    Generation configurationGeneration = 0; ///< Must match binding.configurationGeneration.
+    Rounding rounding = Rounding::EXACT; ///< Rounding of the exact ramp time to whole milliseconds.
+    /** Nonnegative inclusive allowance on |effective - requested| acceleration, in unit and frame
+     * above. The ramp time's rounding is otherwise unconstrained (its error is below 1 ms). */
+    Rational maximumAccelerationError;
+};
+/** Ramp-time arithmetic for a speed change of |speedNative| at the requested acceleration: the
+ * time from rest to the prepared speed, or from that speed to rest. Pure host arithmetic: it claims
+ * no drive law, permission or completion. A profile decides whether its native ramp object means
+ * this time (for which motions, speeds and ramps) and refuses the rest before any work. Every
+ * acceleration below is a positive magnitude or a signed error in the request's unit and frame,
+ * and every Rational is reduced. Default construction holds no result. */
+struct PreparedRampTime {
+    AccelerationRequest requested; ///< Original intent.
+    Binding binding; ///< Frozen route/configuration provenance; equal to the speed's.
+    /** Spatial unit of speedNative. */
+    NativeRateBasis rateBasis = NativeRateBasis::COMMAND_INCREMENTS;
+    TimeUnit rateTime = TimeUnit::SECOND; ///< Time denominator of speedNative.
+    int64_t speedNative = 0; ///< The prepared speed's effectiveNative; only its magnitude is used.
+    Rational exactMs; ///< Exact time in ms, reduced and positive: 1000 |speedNative| / a.
+    uint32_t effectiveMs = 0; ///< exactMs rounded by requested.rounding; inside the supplied range.
+    IntegerQuantization quantization; ///< Exact millisecond error, effectiveMs minus exactMs.
+    Rational effectiveAcceleration; ///< |speedNative| / effectiveMs in the request's unit; positive.
+    Rational accelerationError; ///< Exact effectiveAcceleration minus the requested value; signed.
+};
 /** Validate facts and policies without requiring unused geometry.
  * @param[in] config Caller-owned configuration. @return Local status. */
 Status validateAxisConfig(const AxisConfig& config);
@@ -267,4 +303,30 @@ Status validatePreparedTarget(const PreparedTarget& prepared, const AxisConfig& 
  * @param[out] output Rate evidence, unchanged on failure. @return Local status. */
 Status prepareVelocityTarget(const VelocityRequest& request, const AxisConfig& config,
     PreparedVelocityTarget& output);
+/** Convert an exact acceleration magnitude into the whole-millisecond time of a speed change
+ * between rest and an already prepared speed: T [ms] = 1000 |speed.effectiveNative| / a, with a
+ * converted into native-rate units per second (rpm/s when the native rate is motor rpm) through
+ * the same unit rules as prepareVelocityTarget. Under MOTOR_TURNS with MINUTE this is
+ * T = rpm x 1000 / (60 x a [motor turns/s^2]). Exact Rational arithmetic, no floating point; the
+ * speed used is the quantized integer actually prepared, not the original request.
+ * Refusal precedence: configuration, epochs, the speed, the request, the range, the unit
+ * conversion, storage, rounding, range, allowance.
+ * @param[in] request Acceleration magnitude, its rounding and its allowance.
+ * @param[in] speed Rate from prepareVelocityTarget under config: same binding, rate basis and time,
+ * INTEGER representation, nonzero effectiveNative (either sign).
+ * @param[in] config Current interpretation and scales.
+ * @param[in] minimumMs Inclusive lowest admitted rounded time, at least 1 (a zero time is no ramp).
+ * @param[in] maximumMs Inclusive highest admitted rounded time, at least minimumMs. The caller or
+ * profile supplies the native object's range; times outside it are refused, never clamped.
+ * @param[out] output Ramp-time evidence; unchanged on failure. No pointer is retained.
+ * @return Ok when the rounded time is inside the range and the acceleration error inside the
+ * allowance. Err::INVALID_CONFIG with AxisError::STALE_GENERATION for a stale request or speed;
+ * Err::ILLEGAL_VALUE with AxisError::INVALID_ARGUMENT for a malformed request, speed or range,
+ * AxisError::ARITHMETIC_OVERFLOW when a reduced result exceeds fixed storage and AxisError::LIMIT
+ * outside the range; unit failures add AxisError::UNIT_ERROR_BASE, for example FRACTIONAL_TARGET
+ * (EXACT and a fractional time), QUANTIZATION_ERROR (outside the allowance), MISSING_SCALE, and
+ * APPROXIMATION_REQUIRED with Err::UNSUPPORTED for radians.
+ * @note Pure and bounded: no I/O, clock, allocation or shared state. */
+Status prepareRampTime(const AccelerationRequest& request, const PreparedVelocityTarget& speed,
+    const AxisConfig& config, uint32_t minimumMs, uint32_t maximumMs, PreparedRampTime& output);
 } // namespace MotorControlCAN

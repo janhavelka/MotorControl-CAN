@@ -25,6 +25,11 @@ target_link_libraries(axis_test PRIVATE MotorControlCAN::MotorControlCAN)
 strict_test(axis_test)
 add_test(NAME axis COMMAND axis_test)
 
+add_executable(ramp_time_test ramp_time_test.cpp)
+target_link_libraries(ramp_time_test PRIVATE MotorControlCAN::MotorControlCAN)
+strict_test(ramp_time_test)
+add_test(NAME ramp_time COMMAND ramp_time_test)
+
 add_executable(position_parameters_test position_parameters_test.cpp)
 target_link_libraries(position_parameters_test PRIVATE MotorControlCAN::MotorControlCAN)
 strict_test(position_parameters_test)

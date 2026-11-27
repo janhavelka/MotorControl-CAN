@@ -8,6 +8,7 @@
 
 namespace MotorControlCAN {
 namespace {
+using Detail::compareProducts;
 using Detail::gcd;
 using Detail::magnitude;
 Status fail(AxisError e, const char* text, Err code = Err::ILLEGAL_VALUE) {
@@ -100,22 +101,49 @@ Status displacement(const Rational& value, PositionUnit unit, CoordinateFrame fr
 // unit because TURNS means load turns. One increment per motor turn makes STEPS
 // count motor turns while keeping gear, encoder and polarity factors. A STEPS source
 // keeps its real scale and converts to TURNS at unit gear, again counting motor turns.
-Status rateConversion(const VelocityRequest& r, const AxisConfig& c, UnitConfig& units,
-    VelocityUnit& from, VelocityUnit& to) {
-    from = r.unit; to = VelocityUnit(PositionUnit::STEPS, c.nativeVelocityTime);
+// Velocities and accelerations share these spatial rules; the caller adds their time
+// denominators.
+Status rateConversion(CoordinateFrame frame, PositionUnit unit, const AxisConfig& c,
+    UnitConfig& units, PositionUnit& from, PositionUnit& to) {
+    from = unit; to = PositionUnit::STEPS;
     const bool motorTurns = c.nativeRateBasis == NativeRateBasis::MOTOR_TURNS;
-    if (motorTurns && r.frame == CoordinateFrame::NATIVE) {
-        if (r.unit.position != PositionUnit::TURNS)
+    if (motorTurns && frame == CoordinateFrame::NATIVE) {
+        if (unit != PositionUnit::TURNS)
             return fail(AxisError::INVALID_ARGUMENT, "native rate requires motor turns");
-        units = c.units; to.position = PositionUnit::TURNS; return Ok();
+        units = c.units; to = PositionUnit::TURNS; return Ok();
     }
-    Status s = conversionConfig(r.frame, r.unit.position, c, units); if (!s) return s;
-    if (!motorTurns) { mechanicalUnits(r.frame, from.position, units); return Ok(); }
-    if (r.unit.position == PositionUnit::STEPS) {
+    Status s = conversionConfig(frame, unit, c, units); if (!s) return s;
+    if (!motorTurns) { mechanicalUnits(frame, from, units); return Ok(); }
+    if (unit == PositionUnit::STEPS) {
         units.motorTurnsPerLoadTurn = UnitScale(1, 1, ScaleSource::DOCUMENTED);
-        to.position = PositionUnit::TURNS;
+        to = PositionUnit::TURNS;
     } else units.commandStepsPerMotorTurn = UnitScale(1, 1, ScaleSource::DOCUMENTED);
     return Ok();
+}
+// Exact product of positive factors. Every numerator factor is cancelled against every
+// denominator factor first, so a reduced result that fits is never refused because an
+// intermediate product would not, and the result is reduced.
+bool exactProduct(uint64_t* n, unsigned nCount, uint64_t* d, unsigned dCount,
+    uint64_t& outN, uint64_t& outD) {
+    for (unsigned i = 0; i < nCount; ++i) for (unsigned j = 0; j < dCount; ++j) {
+        const uint64_t common = gcd(n[i], d[j]);
+        n[i] /= common; d[j] /= common;
+    }
+    outN = outD = 1;
+    for (unsigned i = 0; i < nCount; ++i) {
+        if (outN > UINT64_MAX / n[i]) return false;
+        outN *= n[i];
+    }
+    for (unsigned j = 0; j < dCount; ++j) {
+        if (outD > UINT64_MAX / d[j]) return false;
+        outD *= d[j];
+    }
+    return true;
+}
+bool signedRational(uint64_t n, uint64_t d, bool negative, Rational& out) {
+    if (n > uint64_t(INT64_MAX)) return false;
+    out = Rational(negative ? -int64_t(n) : int64_t(n), d);
+    return true;
 }
 double errorDouble(const IntegerQuantization& q) {
     if (!q.errorNumerator) return 0;
@@ -521,8 +549,10 @@ Status prepareVelocityTarget(const VelocityRequest& r, const AxisConfig& c, Prep
         !std::isfinite(r.maximumApproximationError) || r.maximumApproximationError < 0 ||
         (r.approximate && r.unit.position != PositionUnit::RADIANS))
         return fail(AxisError::INVALID_ARGUMENT, "invalid velocity intent");
-    UnitConfig units; VelocityUnit from, to;
-    s = rateConversion(r, c, units, from, to); if (!s) return s;
+    UnitConfig units; PositionUnit fromPosition, toPosition;
+    s = rateConversion(r.frame, r.unit.position, c, units, fromPosition, toPosition);
+    if (!s) return s;
+    const VelocityUnit from(fromPosition, r.unit.time), to(toPosition, c.nativeVelocityTime);
     if (r.frame == CoordinateFrame::NATIVE && r.unit.time != c.nativeVelocityTime)
         return fail(AxisError::INVALID_ARGUMENT, "native rate time dimension differs");
     PreparedVelocityTarget next; next.requested = r; next.binding = c.binding; next.representation = c.velocityRepresentation;
@@ -541,6 +571,76 @@ Status prepareVelocityTarget(const VelocityRequest& r, const AxisConfig& c, Prep
         s = quantize(next.requestedNative, c.velocityRepresentation, r.rounding, r.maximumQuantizationError,
             next.effectiveNative, next.effectiveFloat, next.quantization, next.absoluteErrorBound); if (!s) return s;
     }
+    output = next; return Ok();
+}
+Status prepareRampTime(const AccelerationRequest& r, const PreparedVelocityTarget& v,
+    const AxisConfig& c, uint32_t minimumMs, uint32_t maximumMs, PreparedRampTime& output) {
+    Status s = validateAxisConfig(c); if (!s) return s;
+    if (!r.configurationGeneration || r.configurationGeneration != c.binding.configurationGeneration)
+        return fail(AxisError::STALE_GENERATION, "acceleration configuration epoch differs",
+            Err::INVALID_CONFIG);
+    if (!sameBinding(v.binding, c.binding) || v.rateBasis != c.nativeRateBasis ||
+        v.rateTime != c.nativeVelocityTime)
+        return fail(AxisError::STALE_GENERATION, "prepared speed belongs to another configuration",
+            Err::INVALID_CONFIG);
+    if (v.representation != NativeRepresentation::INTEGER || !v.effectiveNative)
+        return fail(AxisError::INVALID_ARGUMENT, "ramp time needs a nonzero integer native speed");
+    const Rational& allowance = r.maximumAccelerationError;
+    if (!r.value.denominator || r.value.numerator <= 0 ||
+        r.unit.position > PositionUnit::MILLIMETRES || r.unit.velocityTime > TimeUnit::MILLISECOND ||
+        r.unit.accelerationTime > TimeUnit::MILLISECOND || r.rounding > Rounding::CEIL ||
+        !allowance.denominator || allowance.numerator < 0)
+        return fail(AxisError::INVALID_ARGUMENT, "invalid acceleration intent");
+    if (!minimumMs || minimumMs > maximumMs)
+        return fail(AxisError::INVALID_ARGUMENT, "invalid ramp time range");
+    UnitConfig units; PositionUnit fromPosition, toPosition;
+    s = rateConversion(r.frame, r.unit.position, c, units, fromPosition, toPosition);
+    if (!s) return s;
+    if (r.frame == CoordinateFrame::NATIVE && r.unit.velocityTime != c.nativeVelocityTime)
+        return fail(AxisError::INVALID_ARGUMENT, "native acceleration rate time differs");
+    Rational requested; s = unitStatus(reduceRational(r.value, requested)); if (!s) return s;
+    // a in native-rate units per second, so T [s] = |V| / a. Polarity can make it negative.
+    const AccelerationUnit from(fromPosition, r.unit.velocityTime, r.unit.accelerationTime);
+    const AccelerationUnit to(toPosition, c.nativeVelocityTime, TimeUnit::SECOND);
+    Rational native; s = unitStatus(convertAcceleration(requested, from, to, units, native));
+    if (!s) return s;
+    // T = 1000 |V| / a ms. The reciprocal is safe: a positive request and positive scales give
+    // a nonzero a.
+    uint64_t tn[] = {magnitude(v.effectiveNative), 1000, native.denominator};
+    uint64_t td[] = {magnitude(native.numerator)};
+    uint64_t timeN, timeD; Rational exactMs;
+    if (!exactProduct(tn, 3, td, 1, timeN, timeD) || !signedRational(timeN, timeD, false, exactMs))
+        return fail(AxisError::ARITHMETIC_OVERFLOW, "ramp time exceeds exact storage");
+    // The rounding error is below 1 ms; the allowance of the request applies to the acceleration.
+    IntegerQuantization ms;
+    s = unitStatus(quantizeInteger(exactMs, r.rounding, Rational(INT64_MAX), ms)); if (!s) return s;
+    if (ms.value < int64_t(minimumMs) || ms.value > int64_t(maximumMs))
+        return fail(AxisError::LIMIT, "rounded ramp time outside the supplied range");
+    const uint64_t effectiveMs = uint64_t(ms.value);
+    // At a fixed speed a scales with 1 / T: effective = requested x exactMs / effectiveMs, and
+    // effective - requested = -requested x (effectiveMs - exactMs) / effectiveMs.
+    uint64_t an[] = {uint64_t(requested.numerator), timeN};
+    uint64_t ad[] = {requested.denominator, timeD, effectiveMs};
+    uint64_t effectiveN, effectiveD; Rational effective;
+    if (!exactProduct(an, 2, ad, 3, effectiveN, effectiveD) ||
+        !signedRational(effectiveN, effectiveD, false, effective))
+        return fail(AxisError::ARITHMETIC_OVERFLOW, "effective acceleration exceeds exact storage");
+    Rational error; uint64_t errorN = 0, errorD = 1;
+    if (ms.errorNumerator) {
+        uint64_t en[] = {uint64_t(requested.numerator), ms.errorNumerator};
+        uint64_t ed[] = {requested.denominator, ms.errorDenominator, effectiveMs};
+        // A time above the exact one (errorNegative false) lowers the acceleration.
+        if (!exactProduct(en, 2, ed, 3, errorN, errorD) ||
+            !signedRational(errorN, errorD, !ms.errorNegative, error))
+            return fail(AxisError::ARITHMETIC_OVERFLOW, "acceleration error exceeds exact storage");
+    }
+    if (compareProducts(errorN, allowance.denominator, uint64_t(allowance.numerator), errorD) > 0)
+        return unitStatus(Status(Err::ILLEGAL_VALUE, int32_t(UnitError::QUANTIZATION_ERROR),
+            "acceleration error exceeds allowance"));
+    PreparedRampTime next; next.requested = r; next.binding = c.binding;
+    next.rateBasis = v.rateBasis; next.rateTime = v.rateTime; next.speedNative = v.effectiveNative;
+    next.exactMs = exactMs; next.effectiveMs = uint32_t(effectiveMs); next.quantization = ms;
+    next.effectiveAcceleration = effective; next.accelerationError = error;
     output = next; return Ok();
 }
 } // namespace MotorControlCAN

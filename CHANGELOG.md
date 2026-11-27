@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+### Acceleration to ramp time, core arithmetic (prompt 60, slice b2, 2026-11-27)
+
+- **Added (API):** `AccelerationRequest` (exact positive magnitude, `AccelerationUnit`, frame, configuration epoch,
+  its own `Rounding` for the millisecond result and `maximumAccelerationError` in the request's unit),
+  `PreparedRampTime` and `prepareRampTime` in `Axis.h`. The function converts the acceleration into the time a
+  change between rest and an already prepared speed takes, T [ms] = 1000 |`effectiveNative`| / a with a in native
+  rate units per second (rpm/s for a motor-rpm axis), in exact `Rational` arithmetic with the axis gear, lead and
+  scales, and reports the exact and rounded time, the time error, the effective acceleration in the request's unit
+  and its exact error. Zero or negative accelerations, radians, a stale speed, storage overflow, an EXACT fraction,
+  an acceleration error above the allowance and a rounded time outside the caller-supplied range are refused, never
+  clamped; outputs stay unchanged on failure. It is arithmetic only: no profile uses it yet, and whether a drive's
+  ramp object means this time is a profile fact (the Lichuan gate follows in a later slice).
+- New native test `ramp_time` with hand-computed tables (5 mm lead at 600 rpm, rpm/s, turns/s², deg/s², mm/s²,
+  gear ratios, polarity, ties to even, inclusive range edges, storage edges and every refusal).
+
 ### Measured records: stage (c) review fixes (prompt 58, 2026-11-26)
 
 - **Changed (API):** `checkRecordEnable` takes the current `IdentityObservation` and refuses product fields that

@@ -24,5 +24,24 @@ inline uint64_t gcd(uint64_t a, uint64_t b) noexcept {
     return a;
 }
 
+// The full 128-bit product a * b as two words, built from 32-bit partial products so it needs no
+// compiler extension (32-bit targets have no 128-bit integer type).
+inline void multiplyWide(uint64_t a, uint64_t b, uint64_t& high, uint64_t& low) noexcept {
+    const uint64_t a0 = a & 0xffffffffu, a1 = a >> 32, b0 = b & 0xffffffffu, b1 = b >> 32;
+    const uint64_t p00 = a0 * b0, p01 = a0 * b1, p10 = a1 * b0, p11 = a1 * b1;
+    const uint64_t middle = (p00 >> 32) + (p01 & 0xffffffffu) + (p10 & 0xffffffffu);
+    low = (middle << 32) | (p00 & 0xffffffffu);
+    high = p11 + (p01 >> 32) + (p10 >> 32) + (middle >> 32);
+}
+
+// The sign of a * b - c * d, compared exactly in 128 bits: -1, 0 or 1.
+inline int compareProducts(uint64_t a, uint64_t b, uint64_t c, uint64_t d) noexcept {
+    uint64_t leftHigh, leftLow, rightHigh, rightLow;
+    multiplyWide(a, b, leftHigh, leftLow);
+    multiplyWide(c, d, rightHigh, rightLow);
+    if (leftHigh != rightHigh) return leftHigh < rightHigh ? -1 : 1;
+    return leftLow == rightLow ? 0 : (leftLow < rightLow ? -1 : 1);
+}
+
 } // namespace Detail
 } // namespace MotorControlCAN
