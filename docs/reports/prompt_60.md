@@ -54,8 +54,8 @@ about 2 ms.
 | Case | Result | Basis |
 | --- | --- | --- |
 | Position, start from rest | D = 17.1 ms + 0.5052 x T at 20 rpm and above (110 runs, rms 1.6 ms, largest error 5 ms); 144 runs on both nodes, 2 to 300 rpm, `6083` 100 to 2000 ms. In 66 runs with `6083` != `6084`, D follows `6083` (rms 1.5 ms), not `6084` (rms 204 ms). The fixed-rate law fits at rms 158 ms and is excluded | MEASURED |
-| Velocity, start from rest | D = 465 ms + 0.502 x T (314 runs on both nodes, 6 to 4500 rpm, both signs, `2201` 1000 to 51200, T 200 to 2000 ms; rms 13 ms, 1 ms at 3001 rpm and above); the 0.465 s is a start latency after word 15 | MEASURED for the time law; every run had `6083` = `6084`, so which object sets it is not shown |
-| Change between two nonzero speeds | Each change takes the full ramp T whatever its size: 30 to 60 and 60 to 30 rpm at T = 500 ms, 6 to 60 rpm at T = 200 ms (5 runs, 6 to 60 rpm, `6083` = `6084`, resolution about 10 ms). The guide's formula a = V x 1000 / T with V the commanded speed predicts 0.142 s for 30 to 60 rpm and is contradicted | MEASURED (5 runs); contradicts [speed_units.md](../speed_units.md) |
+| Velocity, start from rest | D = 465.6 ms + 0.5015 x T at 20 rpm and above (229 runs, rms 7.3 ms); 469.1 ms + 0.4993 x T over all 314 runs on both nodes (6 to 4500 rpm, both signs, `2201` 1000 to 51200, T 200 to 2000 ms; rms 22 ms); the 0.47 s is a start latency after word 15 | MEASURED for the time law; every run had `6083` = `6084`, so which object sets it is not shown |
+| Change between two nonzero speeds | Each change takes the full ramp T whatever its size: 30 to 60 and 60 to 30 rpm at T = 500 ms, 6 to 60 rpm at T = 200 ms (7 runs, 6 to 60 rpm, `6083` = `6084`, reaction 16.5 to 18.8 ms, resolution about 10 ms). The guide's formula a = V x 1000 / T with V the commanded speed predicts 0.142 s for 30 to 60 rpm and is contradicted | MEASURED (7 runs); contradicts [speed_units.md](../speed_units.md) |
 | Position deceleration | One HALT (trial 709): stop 17 ms + T/2 after the HALT write, T = 500 ms, `6083` = `6084`; arrival at the target only bracketed by 1 s polls | Unresolved |
 | Velocity deceleration | Two HALT runs (1507, 1613; 30 and 60 rpm; T = 200 ms): 14 to 15 ms + T/2, `6083` = `6084`. Quick stop (`000B`, about 170 runs) took 5 to 7 ms at 6 to 60 rpm whatever `6084` was | Unresolved; quick stop does not follow `6084` |
 | Homing (`609A`) | No retained record writes `609A` or `6099`; every home route was refused before any write | None |
@@ -63,14 +63,18 @@ about 2 ms.
 Vendor figures (original PDF pages): EN86 and ZH86 p11 (printed page 9) bracket the acceleration time from zero
 velocity to the target plateau; OP86 p9 (CL57-C/OL57-C header) starts from a labelled start velocity. D - T/2 is
 constant within a few ms from 20 to 300 rpm, which bounds any start velocity at about 0.2 rpm, so the raw data fits
-EN86/ZH86, not OP86. The rate 0.99201 x floor(rpm x 1000 / 60) counts/s is confirmed from 6 to 4500 rpm in both
-modes (0.99197 to 0.99210 above 20 rpm; 2 and 12 rpm in position mode are unexplained outliers); the ramp lasts about
+EN86/ZH86, not OP86. The rate 0.99201 x floor(rpm x 1000 / 60) counts/s (median) is confirmed from 6 to 4500 rpm in both
+modes (0.99161 to 0.99237 at `2201=1000`, narrower at higher subdivisions; 2 and 12 rpm in position mode are
+unexplained outliers); the ramp lasts about
 1.008 to 1.012 x T, which a single slower motion clock (1 / 0.99201 = 1.00806) would explain (hypothesis, worth at
 most about 20 ms at 2000 ms).
 
 The [speed units guide](../speed_units.md), the [units re-audit](2026-11-13_units_reaudit.md) and Q11
 ([device_conflicts.md](../device_conflicts.md)) cite four runs for this law; stage (b) records the larger set and
-corrects the guide's formula for speed changes. The analysis was made in the session scratchpad; slice b1 retains it.
+corrects the guide's formula for speed changes. Slice b1 retained the analysis in
+[docs/bench/20261127-p60-ramp-analysis](../bench/20261127-p60-ramp-analysis/README.md); its re-run, after the sign
+handling of S0018 and S0023 was fixed, gives the figures in this table (7 speed-change runs, not the first scan's 5;
+the velocity fit as stated here, where the first scan gave 465 ms + 0.502 x T at rms 13 ms).
 
 ## Lead decisions (stage (a))
 
@@ -82,7 +86,7 @@ corrects the guide's formula for speed changes. The analysis was made in the ses
    request never widens them.
 2. Refused in acceleration form until measured (native milliseconds stay available): position deceleration (`6084`),
    velocity deceleration other than equal to the acceleration, speed changes and move replacements (the measured law
-   is T = |dV| / a on 5 runs; too thin for a regular conversion, recorded for the guide), homing ramps (`609A`), and
+   is T = |dV| / a on 7 runs at 6 to 60 rpm; too thin for a regular conversion, recorded for the guide), homing ramps (`609A`), and
    position starts above 300 rpm (velocity-mode evidence is not position-mode evidence).
 3. Conversion: T [ms] = V_eff [motor rpm] x 1000 / (60 x a [motor turns/s^2]), in exact `Rational` arithmetic with a
    checked reciprocal, where V_eff is the effective whole rpm after the speed's own quantization. The acceleration

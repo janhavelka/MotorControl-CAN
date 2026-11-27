@@ -1,0 +1,355 @@
+{
+ "inputs": {
+  "loose_rx": 1273,
+  "archives": 536,
+  "sha256": "795f4d8451da299275bebd8e70a271ee48a9ca91becdea71198da336ed4f95fe",
+  "records_with_motion_writes": 1503,
+  "node_timelines": 498
+ },
+ "position_start": {
+  "runs": 144,
+  "nodes": [
+   1,
+   2
+  ],
+  "rpm": [
+   2,
+   300
+  ],
+  "ramp_6083_ms": [
+   100,
+   2000
+  ],
+  "law_6083_at_or_above_20_rpm": {
+   "n": 110,
+   "intercept_ms": 17.05,
+   "slope": 0.50523,
+   "rms_ms": 1.61,
+   "max_ms": 4.97
+  },
+  "below_20_rpm": {
+   "runs": 34,
+   "max_ms_from_law": 41.3
+  },
+  "unequal_ramps_at_or_above_20_rpm": {
+   "runs": 66,
+   "fit_to_6083": {
+    "n": 66,
+    "intercept_ms": 16.49,
+    "slope": 0.50584,
+    "rms_ms": 1.49,
+    "max_ms": 5.23
+   },
+   "fit_to_6084": {
+    "n": 66,
+    "intercept_ms": 354.08,
+    "slope": -0.13584,
+    "rms_ms": 204.44,
+    "max_ms": 743.68
+   }
+  },
+  "fixed_rate_law_D_vs_T_times_V_over_2000": {
+   "n": 110,
+   "intercept_ms": 191.69,
+   "slope": 3.04299,
+   "rms_ms": 158.45,
+   "max_ms": 746.85
+  },
+  "start_velocity_fit": {
+   "n": 110,
+   "start_velocity_rpm": -0.204,
+   "standard_error_rpm": 0.029
+  },
+  "ramp_duration_over_T": 1.0105
+ },
+ "velocity_start": {
+  "runs": 314,
+  "nodes": [
+   1,
+   2
+  ],
+  "rpm": [
+   6,
+   4500
+  ],
+  "negative_runs": 10,
+  "ramp_ms": [
+   200,
+   300,
+   500,
+   1000,
+   2000
+  ],
+  "runs_with_6083_not_6084": 0,
+  "subdivision_inferred": [
+   1000,
+   4000,
+   10000,
+   25600,
+   51200
+  ],
+  "law_all_runs": {
+   "n": 314,
+   "intercept_ms": 469.05,
+   "slope": 0.49925,
+   "rms_ms": 22.3,
+   "max_ms": 101.75
+  },
+  "law_at_or_above_20_rpm": {
+   "n": 229,
+   "intercept_ms": 465.56,
+   "slope": 0.50151,
+   "rms_ms": 7.28,
+   "max_ms": 30.06
+  },
+  "law_at_or_above_3001_rpm": {
+   "n": 23,
+   "intercept_ms": 460.3,
+   "slope": 0.50422,
+   "rms_ms": 0.62,
+   "max_ms": 1.14
+  },
+  "ramp_duration_over_T_at_or_above_20_rpm": 1.003,
+  "ramp_duration_over_T_at_or_above_3001_rpm": 1.0084
+ },
+ "count_rate": {
+  "velocity_at_1000": {
+   "runs": 188,
+   "rpm": [
+    20,
+    4500
+   ],
+   "median": 0.99201,
+   "range": [
+    0.99161,
+    0.99235
+   ]
+  },
+  "velocity_other_subdivisions": {
+   "runs": 41,
+   "rpm": [
+    60,
+    4250
+   ],
+   "median": 0.99203,
+   "range": [
+    0.99197,
+    0.9921
+   ]
+  },
+  "position_at_1000_cruise_2000_counts": {
+   "runs": 68,
+   "rpm": [
+    30,
+    300
+   ],
+   "median": 0.99201,
+   "range": [
+    0.99177,
+    0.99237
+   ]
+  }
+ },
+ "speed_change": [
+  {
+   "run": "20261116-p52/31-velocity-change-node2/rx.txt +0",
+   "node": 2,
+   "rpm": [
+    30,
+    60
+   ],
+   "ramp_ms": [
+    500,
+    500
+   ],
+   "D12_ms": 268.6,
+   "resolution_ms": 15.1,
+   "D12_minus_T_over_2_ms": 18.6,
+   "D12_minus_old_formula_time_over_2_ms": 143.6
+  },
+  {
+   "run": "20261116-hil/packed/S0018-n1-vc30to60.tar.xz::S0018-n1-vc30to60/20261116T093320Z-velocity-change-30-60-n1-56084/rx.txt +1",
+   "node": 1,
+   "rpm": [
+    30,
+    60
+   ],
+   "ramp_ms": [
+    500,
+    500
+   ],
+   "D12_ms": 268.7,
+   "resolution_ms": 14.7,
+   "D12_minus_T_over_2_ms": 18.7,
+   "D12_minus_old_formula_time_over_2_ms": 143.7
+  },
+  {
+   "run": "20261116-hil/packed/S0019-n1-vc60to30.tar.xz::S0019-n1-vc60to30/20261116T093406Z-velocity-change-60-30-n1-56088/rx.txt +1",
+   "node": 1,
+   "rpm": [
+    60,
+    30
+   ],
+   "ramp_ms": [
+    500,
+    500
+   ],
+   "D12_ms": 268.1,
+   "resolution_ms": 10.9,
+   "D12_minus_T_over_2_ms": 18.1,
+   "D12_minus_old_formula_time_over_2_ms": 18.1
+  },
+  {
+   "run": "20261116-hil/packed/S0020-n1-vc6to60.tar.xz::S0020-n1-vc6to60/20261116T093453Z-velocity-change-6-60-n1-56092/rx.txt +1",
+   "node": 1,
+   "rpm": [
+    6,
+    60
+   ],
+   "ramp_ms": [
+    200,
+    200
+   ],
+   "D12_ms": 117.5,
+   "resolution_ms": 7.7,
+   "D12_minus_T_over_2_ms": 17.5,
+   "D12_minus_old_formula_time_over_2_ms": 27.5
+  },
+  {
+   "run": "20261116-hil/packed/S0023-n2-vc30to60.tar.xz::S0023-n2-vc30to60/20261116T093721Z-velocity-change-30-60-n2-56106/rx.txt +1",
+   "node": 2,
+   "rpm": [
+    30,
+    60
+   ],
+   "ramp_ms": [
+    500,
+    500
+   ],
+   "D12_ms": 268.8,
+   "resolution_ms": 14.8,
+   "D12_minus_T_over_2_ms": 18.8,
+   "D12_minus_old_formula_time_over_2_ms": 143.8
+  },
+  {
+   "run": "20261116-hil/packed/S0024-n2-vc60to30.tar.xz::S0024-n2-vc60to30/20261116T093808Z-velocity-change-60-30-n2-56110/rx.txt +1",
+   "node": 2,
+   "rpm": [
+    60,
+    30
+   ],
+   "ramp_ms": [
+    500,
+    500
+   ],
+   "D12_ms": 268.1,
+   "resolution_ms": 11.0,
+   "D12_minus_T_over_2_ms": 18.1,
+   "D12_minus_old_formula_time_over_2_ms": 18.1
+  },
+  {
+   "run": "20261116-hil/packed/S0025-n2-vc6to60.tar.xz::S0025-n2-vc6to60/20261116T093855Z-velocity-change-6-60-n2-56114/rx.txt +1",
+   "node": 2,
+   "rpm": [
+    6,
+    60
+   ],
+   "ramp_ms": [
+    200,
+    200
+   ],
+   "D12_ms": 116.5,
+   "resolution_ms": 7.8,
+   "D12_minus_T_over_2_ms": 16.5,
+   "D12_minus_old_formula_time_over_2_ms": 26.5
+  }
+ ],
+ "halt": [
+  {
+   "trial": "709",
+   "node": 1,
+   "mode": 1,
+   "rpm": 300,
+   "ramp_6084_ms": 500,
+   "ramp_6083_ms": 500,
+   "standstill_record": "20261105T1541Z-rearm-halt-node1-710/rx.txt",
+   "standstill_6064": 4728,
+   "Dstop_ms": 267.7,
+   "Dstop_minus_T_over_2_ms": 17.7
+  },
+  {
+   "trial": "1507",
+   "node": 1,
+   "mode": 3,
+   "rpm": 30,
+   "ramp_6084_ms": 200,
+   "ramp_6083_ms": 200,
+   "standstill_record": "20261110T1037Z-s18-p1-node1-1508/rx.txt",
+   "standstill_6064": 5663,
+   "Dstop_ms": 114.1,
+   "Dstop_minus_T_over_2_ms": 14.1
+  },
+  {
+   "trial": "1613",
+   "node": 2,
+   "mode": 3,
+   "rpm": 60,
+   "ramp_6084_ms": 200,
+   "ramp_6083_ms": 200,
+   "standstill_record": "20261110T1044Z-s19-p1-node2-1614/rx.txt",
+   "standstill_6064": 11327,
+   "Dstop_ms": 115.1,
+   "Dstop_minus_T_over_2_ms": 15.1
+  }
+ ],
+ "position_arrival": {
+  "runs": 45,
+  "median_bracket_s": 1.0,
+  "bracket_s": [
+   0.5,
+   2.0
+  ],
+  "brackets_containing_cruise_end_plus_6084_over_2": 42,
+  "brackets_containing_cruise_end_plus_6083_over_2": 38,
+  "brackets_containing_cruise_end_instant_stop": 31,
+  "runs_with_6083_not_6084": 24
+ },
+ "quick_stop": {
+  "runs": 170,
+  "excluded_not_cruising": 2,
+  "runs_by_mode": {
+   "1": 8,
+   "3": 162
+  },
+  "nodes": [
+   1,
+   2
+  ],
+  "rpm": [
+   6,
+   60
+  ],
+  "Dstop_ms_p5_p25_median_p75_p95": [
+   -0.2,
+   4.1,
+   5.8,
+   7.2,
+   10.0
+  ],
+  "median_ms_by_6084": {
+   "200": [
+    158,
+    5.8
+   ],
+   "500": [
+    4,
+    6.4
+   ],
+   "1000": [
+    8,
+    5.7
+   ]
+  }
+ },
+ "homing_ramp_writes_609A_6099": 0
+}

@@ -12,6 +12,9 @@ a drive; the only compilation was a scratch program in the session scratchpad (s
 acceleration-to-ramp conversion, so there is no RS behavior to adopt here. FieldCore was not inspected (no ownership
 seam is involved). The user-facing result is [Speed, ramp and position units](../speed_units.md).
 
+Correction 2026-11-27: the ramp formula of section 2 holds for starts from rest only; see the note at the end of that
+section.
+
 ## How to read the evidence
 
 - **Visual**: I rendered the original PDF page to an image this session (PyMuPDF, 110 dpi; figure crops at 220 dpi)
@@ -135,6 +138,14 @@ nonzero speeds, the start velocity of the OP86 figure and zero.
 
 Inferred formula under this reading: a = (v_rpm / 60) / (t_ms / 1000) turns/s², or a = v_rpm × 1000 / t_ms rpm/s,
 where v is the commanded speed of that move. A fixed ramp time therefore gives a higher acceleration at a higher speed.
+
+**Correction note (2026-11-27, prompt 60).** The text above is kept as written on 2026-11-13. A later
+[ramp analysis](../bench/20261127-p60-ramp-analysis/README.md) of every retained record that commands motion measured
+the start-from-rest reading: position starts (2 to 300 rpm, `6083` 100 to 2000 ms, 144 runs; `6083` sets the ramp,
+not `6084`) and velocity starts (6 to 4500 rpm, 200 to 2000 ms, 314 runs, always `6083` = `6084`). The formula is
+wrong for a change between two nonzero speeds when v is read as the commanded speed: in seven velocity-mode changes
+(6 to 60 rpm) every change took the whole ramp time, so a = |Δv| / t. Deceleration (three HALT runs) and the homing
+ramp remain unresolved. The [speed units guide](../speed_units.md) carries the corrected statement.
 
 ## 3. The 0.992 rate (question 5)
 
