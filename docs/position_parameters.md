@@ -72,7 +72,7 @@ position-mode evidence). The reported count rate, 0.99201 x floor(rpm x `2201` /
 ramp about 1 % longer than written are observations, never compensated
 ([speed units](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/speed_units.md)). The console forms are
 `move ... speed VALUE RATE FRAME accel VALUE ACCEL FRAME configured` and
-`accel VALUE ACCEL FRAME` ([CLI contract](cli_contract.md)).
+`accel VALUE ACCEL FRAME` ([CLI contract](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/cli_contract.md)).
 
 ## Snapshots and operation admission
 

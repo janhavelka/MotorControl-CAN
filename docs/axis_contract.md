@@ -212,7 +212,7 @@ speed, and a profile states where its native ramp object means that time and whi
 applies. With a 5 mm lead at 600 rpm, 500 mm/s^2 is 100 ms; 300 mm/s^2 is 500/3 ms, NEAREST
 167 ms with an effective 50000/167 mm/s^2 (error -100/167); 10 mm/s^2 is 5000 ms and outside
 a 1..2000 ms range. The Lichuan profile gates it in `LICHUAN_C::prepareAccelerationRamp`
-([position guide](position_parameters.md), [velocity guide](velocity.md)).
+([position guide](position_parameters.md), [velocity guide](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/velocity.md)).
 
 Names follow MotorControl-RS: `acceleration` and `deceleration` are physical magnitudes in an
 `AccelerationUnit` (RS `docs/axis_contract.md` "Velocity, ramps and effort",
