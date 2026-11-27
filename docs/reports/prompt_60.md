@@ -1,6 +1,6 @@
 # Prompt 60 report: user units for speed and acceleration
 
-State: In progress; stage (a) complete, stage (b) next. Run by the unattended Claude loop of 2026-11-23
+State: In progress; stages (a) and (b) complete, stage (c) review next. Run by the unattended Claude loop of 2026-11-23
 ([COMMON "Owner absence", Schedule](../prompts/COMMON.md#owner-absence-20-november-to-about-4-december-2026)).
 
 ## Starting point
@@ -129,3 +129,16 @@ package, Doxygen outside `.build`, firmware gates for console changes) and commi
 
 Stage (c): a stronger reviewer (Fable, high) checks the arithmetic and rounding rules and independently re-fits the
 ramp law from the raw records; a second reviewer checks the API and console.
+
+## Stage (b) commits and checks (2026-11-27)
+
+| Slice | Commit | Content | Checks |
+| --- | --- | --- | --- |
+| b1 | `e34c7e0d` | Ramp-law analysis retained under [docs/bench/20261127-p60-ramp-analysis](../bench/20261127-p60-ramp-analysis/README.md) (scripts, per-run table, summary; outputs reproduce byte for byte); the speed guide records the start-from-rest law and corrects the speed-change formula; re-audit correction note; Q11 row | `check_promptset.py --check-git-ref INDEX` and `HEAD` (only the held maxon artifacts), `check_repository.py`, `git diff --check` |
+| b2 | `5ba893de` | `AccelerationRequest`, `PreparedRampTime`, `prepareRampTime` (`Axis.h`): T = 1000 x \|speed\| / a, exact with checked 128-bit products, the request's rounding, an allowance on the acceleration error, the caller's millisecond range (refused outside, never clamped); `rateConversion` frame rules shared with velocities; `ramp_time_test` | Full verify on a clean worktree 180 of 180, package, ledger, strict Doxygen; CI 45956602049 succeeded |
+| b3 | `a593882d` | `LICHUAN_C::prepareAccelerationRamp` (`Position.h`): move starts fill `6083` only (2 to 300 rpm, 100 to 2000 ms), velocity starts fill both ramps with one value (6 to 4500 rpm, 200 to 2000 ms); decelerations, velocity changes, move replacements and homing ramps refused in acceleration form before any work; native validation and record checks unchanged; `acceleration_ramp_test` | Full verify 181 of 181, package, ledger, strict Doxygen; CI 45959858841 succeeded |
+| b4 | `19430b30` | Console: speeds in `UNIT/s` and `UNIT/min` for move, speed and home (bare number stays rpm), accelerations in `rpm/s`, `turns/s2` or `UNIT/s2` for move and velocity through `prepareAccelerationRamp` only, `ramp_value` reply record; refusals carry the library's reason; bench routes, replacements and changes stay native; about 330 bytes of RAM per console (host estimate) | Full verify 181 of 181, package, ledger, `s2_bench_test.py`, strict Doxygen; the implementer's `check_firmware.py --target all` and `check_stack.py --strict` |
+| b5 | `98d12665` | Units status, axis contract, position, velocity and homing guides, coverage, CHANGELOG; the ledger appends the measured law to `6083`/`6084` and the 7-run change result to Q26 (requirement text kept), generated reference regenerated; prompt 73 points at the measured law | Strict Doxygen (39 headers), `check_promptset.py --check-git-ref HEAD`, `check_repository.py`, `check_lichuan_ledger.py`, `generate_lichuan_objects.py --check`, `check_lichuan_operations.py` |
+
+Lead decision during b3: the acceleration form admits only each mode's measured ramp range (moves 100 to 2000 ms,
+velocity 200 to 2000 ms), not the native 1 to 2000 ms; shorter ramps stay available in native milliseconds.
