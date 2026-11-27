@@ -1,6 +1,6 @@
 # Prompt 60 report: user units for speed and acceleration
 
-State: In progress; stages (a) and (b) complete, stage (c) review next. Run by the unattended Claude loop of 2026-11-23
+State: In progress; stages (a), (b) and (c) complete, stage (d) acceptance next. Run by the unattended Claude loop of 2026-11-23
 ([COMMON "Owner absence", Schedule](../prompts/COMMON.md#owner-absence-20-november-to-about-4-december-2026)).
 
 ## Starting point
@@ -53,7 +53,7 @@ about 2 ms.
 
 | Case | Result | Basis |
 | --- | --- | --- |
-| Position, start from rest | D = 17.1 ms + 0.5052 x T at 20 rpm and above (110 runs, rms 1.6 ms, largest error 5 ms); 144 runs on both nodes, 2 to 300 rpm, `6083` 100 to 2000 ms. In 66 runs with `6083` != `6084`, D follows `6083` (rms 1.5 ms), not `6084` (rms 204 ms). The fixed-rate law fits at rms 158 ms and is excluded | MEASURED |
+| Position, start from rest | (Stage (c) re-run, both directions: see below.) D = 17.1 ms + 0.5052 x T at 20 rpm and above (110 runs, rms 1.6 ms, largest error 5 ms); 144 runs on both nodes, 2 to 300 rpm, `6083` 100 to 2000 ms. In 66 runs with `6083` != `6084`, D follows `6083` (rms 1.5 ms), not `6084` (rms 204 ms). The fixed-rate law fits at rms 158 ms and is excluded | MEASURED |
 | Velocity, start from rest | D = 465.6 ms + 0.5015 x T at 20 rpm and above (229 runs, rms 7.3 ms); 469.1 ms + 0.4993 x T over all 314 runs on both nodes (6 to 4500 rpm, both signs, `2201` 1000 to 51200, T 200 to 2000 ms; rms 22 ms); the 0.47 s is a start latency after word 15 | MEASURED for the time law; every run had `6083` = `6084`, so which object sets it is not shown |
 | Change between two nonzero speeds | Each change takes the full ramp T whatever its size: 30 to 60 and 60 to 30 rpm at T = 500 ms, 6 to 60 rpm at T = 200 ms (7 runs, 6 to 60 rpm, `6083` = `6084`, reaction 16.5 to 18.8 ms, resolution about 10 ms). The guide's formula a = V x 1000 / T with V the commanded speed predicts 0.142 s for 30 to 60 rpm and is contradicted | MEASURED (7 runs); contradicts [speed_units.md](../speed_units.md) |
 | Position deceleration | One HALT (trial 709): stop 17 ms + T/2 after the HALT write, T = 500 ms, `6083` = `6084`; arrival at the target only bracketed by 1 s polls | Unresolved |
@@ -142,3 +142,46 @@ ramp law from the raw records; a second reviewer checks the API and console.
 
 Lead decision during b3: the acceleration form admits only each mode's measured ramp range (moves 100 to 2000 ms,
 velocity 200 to 2000 ms), not the native 1 to 2000 ms; shorter ramps stay available in native milliseconds.
+
+## Stage (c) review (2026-11-27)
+
+Two new reviewer agents, read-only, on `1d1e2b6d` (MotorControl-RS `403eed0`, clean; the units seam unchanged since
+stage (a)):
+
+- Arithmetic, rounding and an independent re-fit (Fable, high): no critical or high finding. Thirteen hand-computed
+  cases (rounding ties, allowance edges, range edges 99/100/2000/2001 ms, gear and lead, deg/s^2, reversed polarity,
+  radians refused) and every expected value in the three test files match; a fuzz of about 180k core and 120k box cases
+  against an exact-fraction model found no mismatch. Its own fit of the raw captures (1273 loose captures and 536
+  archives, read in memory) agrees with all three claims: position starts D = 17.02 ms + 0.5039 x T over 337 runs at
+  30 to 300 rpm in both directions (rms 0.9 ms; `6084` coefficient 0.0000), velocity starts D = 461.8 ms + 0.5035 x T
+  (83 runs, rms 1.1 ms), and the 7 speed changes take the full T (plus seven position-mode re-triggered changes not
+  in the retained set). Findings: medium, the box was the bounding rectangle of measured points, not the measured
+  set (4500 rpm completed once; position ramps above 1000 ms rest on one run, trial 52020, counted twice); medium,
+  moves too short to reach their speed are unmeasured; low, refusal precedence (storage overflow before LIMIT), no
+  binding of `effectiveMs` to a later speed, missing edge-tie tests. The retained `ramp.py` compared the sign of
+  `606C` with unsigned `6081` and so dropped every reverse position start.
+- API, integration, console and documents (Opus, xhigh): no critical or high finding; the boxes, refusals before any
+  frame and identical native traffic confirmed. Findings: medium, `docs/speed_units.md` still said nothing converts;
+  medium, the acceleration-form ramp was not tied to the operation it was made for (a caller could place it in a
+  replacement, a homing request or with another speed); medium, a change or replacement after an acceleration-form
+  start kept the start's milliseconds and so silently changed the acceleration (for example 120 to 3000 rpm: about 24
+  times the request); low, console paths relying only on the library's refusal, test gaps, CLI contract drifts.
+
+Lead dispositions (all fixed in `05564001` unless stated):
+
+- Boxes narrowed: moves 2 to 300 rpm with ramps 100 to 1000 ms; velocity 6 to 3000 rpm with ramps 200 to 2000 ms (4500
+  rpm completed once on node 2, and FF05 occurred at 4000 rpm with 200 ms ramps on 2026-11-13). Doxygen and the guides
+  call each the bounding box of measured points and list its unmeasured corners, short moves included.
+- Checked placement: `MoveProfile::rampSource` and `VelocityProfile::rampSource` (`RampSource`, `Settings.h`) carry the
+  use, binding, effective native speed and milliseconds of an acceleration-form ramp; the preparations refuse a ramp
+  made for another use, binding, speed or value (`RAMP_SOURCE`), and a velocity change or move replacement on a run
+  whose ramps came from the acceleration form (`RAMP_CHANGE`), before any work. Native-millisecond runs are unchanged.
+- Console: the homing, replacement and deceleration acceleration paths refuse in the console itself; the missing tests
+  and the CLI contract wording are added.
+- Analysis re-run with both directions and without the duplicate: position 348 runs (143 forward, 205 reverse; three
+  reverse runs at 600 rpm lie outside the box), D = 17.25 ms + 0.5042 x T over 278 runs (rms 1.4 ms), 191 runs with
+  unequal ramps following `6083` (rms 1.4 ms against 172 ms for `6084`), ramp duration 1.0083 x T; velocity unchanged.
+- `docs/speed_units.md` rewritten for the implemented conversion; the Doxygen of `prepareRampTime` states the refusal
+  precedence as implemented.
+- Backlog, not fixed: refusing a move shorter than its ramps' distance in acceleration form (documented as inference
+  instead).
