@@ -378,19 +378,20 @@ paths as a direct native caller. The installed core has no parser or scheduler.
 
 | Working grammar | Public/application call | Effect and completion |
 | --- | --- | --- |
-| `speed [VALUE [rpm]]` | `setSimpleSpeed` | Host intent or inspection; immediate |
-| `accel [VALUE [ms]]`, `decel [VALUE [ms]]` | `setSimpleRamp` | Host ramp-time intent; immediate |
+| `speed [VALUE [rpm] \| VALUE RATE FRAME [round POLICY ERROR]]` | `setSimpleSpeed` | Host intent or inspection; immediate; a set reply previews the whole `rpm` and `rpm_error` (`prepareVelocityTarget`) |
+| `accel [VALUE [ms] \| VALUE ACCEL FRAME [round POLICY ERROR]]` | `setSimpleRamp` / `setSimpleAcceleration` | Host 6083 intent; immediate; an acceleration is converted per move by `prepareAccelerationRamp` |
+| `decel [VALUE [ms]]` | `setSimpleRamp` | Host 6084 time intent; immediate; `decel VALUE ACCEL FRAME` is refused (`prepareAccelerationRamp`, `MOVE_DECELERATION`) |
 | `motion [write\|verify]` | `setSimpleSetup` | Host setup policy; immediate |
 | `stepsperturn POSITIVE_NUMBER` | `configureCommandScale` / `configureAxis` | Explicit assumed command scale; immediate, no device write |
 | `moveby VALUE [steps\|deg\|turn\|mm]` | `buildSimpleMove` / `requestMoveRelative` | Device action; retained asynchronous operation |
 | `moveto VALUE [steps\|deg\|turn\|mm]` | `buildSimpleMove` / `requestMove` | Device action; retained asynchronous operation |
-| `move relative\|absolute VALUE UNIT FRAME RPM configured [setup write\|verify] [basis actual\|commanded\|queued] [round POLICY ERROR [approx ERROR]]` | `requestMove` / concrete relative or absolute API | Device action; retained asynchronous operation |
-| `move angle VALUE UNIT FRAME positive\|negative\|shortest reject\|positive\|negative RPM configured [setup write\|verify] [round POLICY ERROR [approx ERROR]]` | `requestMoveAngle` | Device action; retained asynchronous operation |
-| `velocity VALUE RATE FRAME DURATION_MS configured normal\|fast [round POLICY ERROR [approx ERROR]]` | `makeFiniteVelocity` / `requestVelocity` | Finite device action, including its separate stop evidence |
+| `move relative\|absolute VALUE UNIT FRAME SPEED [RAMP] configured [setup write\|verify] [basis actual\|commanded\|queued] [round POLICY ERROR [approx ERROR]]` | `requestMove` / concrete relative or absolute API; `prepareAccelerationRamp` (`MOVE_START`) for `RAMP` | Device action; retained asynchronous operation |
+| `move angle VALUE UNIT FRAME positive\|negative\|shortest reject\|positive\|negative SPEED [RAMP] configured [setup write\|verify] [round POLICY ERROR [approx ERROR]]` | `requestMoveAngle` | Device action; retained asynchronous operation |
+| `velocity VALUE RATE FRAME DURATION_MS [RAMP] configured normal\|fast [round POLICY ERROR [approx ERROR]]` | `makeFiniteVelocity` / `requestVelocity`; `prepareAccelerationRamp` (`VELOCITY_START`) for `RAMP` | Finite device action, including its separate stop evidence |
 | `home methods` | Documentary method inventory17,18,24,29 | Cached inspection, no qualification claim |
 | `velocity read` | Ordinary typed `VELOCITY_TARGET` read | Explicit upload plan; Q20 whole-plan gate applies |
 | `home read` | Ordinary typed `HOMING` read | Explicit upload plan; Q20 whole-plan gate applies |
-| `home METHOD SEARCH_RPM RETURN_RPM RAMP_MS zero` | `requestHome` | Qualified native method; retained asynchronous operation |
+| `home METHOD SPEED SPEED RAMP_MS zero` | `requestHome` | Qualified native method; retained asynchronous operation; a ramp in acceleration form is refused (`HOMING`) |
 | `mode AXIS_ID 1\|3\|6` | `ProbeMotion::requestModeSelect` or `startAction` / `prepareModeSelect` (prompt 57) | One `6060` write on the named fresh report, or on the command's own identity and state reads, settled by `6061`; the library refuses every other code, an enabled drive and another product before any write; never enables |
 | `enable AXIS_ID` | `ProbeMotion::requestEnable` or `startAction` / `prepareEnable` | The regular measured mode 1 enable from the named fresh report and identity, or from the command's own reads (`EnableGate::MEASURED`), or explicitly named trial evidence; "already enabled" (a terminal success, `alreadyEnabled`, nothing sent) after the session's own acknowledged `000F`; retained asynchronous operation |
 | `motor-release AXIS_ID` | `ProbeMotion::requestRelease` or `startAction` / `prepareRelease` (prompt 57) | The release table's one word on the named fresh report, or on the command's own identity, CONTROL and state reads, or nothing for an already released one; not a stop, never a standstill claim, never resent |
@@ -406,13 +407,38 @@ and its bench evidence are in [fault clearing](fault_reference_actions.md#two-re
 
 `UNIT` is `steps`, `fullsteps`, `counts`, `turn`, `deg`, `rad` or `mm`.
 `FRAME` is `native`, `motor` or `load`. `RATE` is `rpm`, `turns/s`, or a
-`UNIT/s` spelling. `POLICY` is `exact`, `nearest` (ties to even), `zero`, `floor`
+`UNIT/s` or `UNIT/min` spelling. `ACCEL` is `rpm/s`, `turns/s2` or a `UNIT/s2` spelling.
+`POLICY` is `exact`, `nearest` (ties to even), `zero`, `floor`
 or `ceil`. Error allowances are exact nonnegative numbers in the destination unit;
 `approx` requires radians and a positive explicit approximation allowance. Trailing
 tokens, duplicate/reordered options, overflow and truncated input fail before any
 native request. `basis` is valid only for relative moves; its default is explicitly
 ACTUAL and cannot fall back to commanded or queued position. No optional address
 suffix is accepted: `host`/`useaddr` select an existing target separately.
+
+Speeds and ramps in user units (prompt 60). `SPEED` is a bare number, motor rpm in the native
+frame, exact, as before, or `speed VALUE RATE FRAME [round POLICY ERROR]`. `RAMP` is
+`accel VALUE ACCEL FRAME [round POLICY ERROR]`, where the rounding applies to the millisecond result
+and its allowance is in the acceleration's unit; a speed's or ramp's `round` comes before
+`configured`, so it is never taken for the trailing position or rate rounding. The console only
+parses: `LICHUAN_C::prepareAccelerationRamp` converts the acceleration with the whole rpm that is
+written, inside the measured start-from-rest law, and the repository check refuses any other
+conversion in the console sources. A move's `RAMP` (or a held `accel VALUE ACCEL FRAME`, which
+`configured` moves and `moveby`/`moveto` use) sets 6083 only; 6084 stays the `decel` milliseconds.
+A velocity command's `RAMP` sets both 6083 and 6084 to the one converted time, the measured
+condition. Refused with the library's reason, before any frame: `decel` in acceleration form
+(standalone, or as a move's or velocity command's `RAMP`), a homing ramp in acceleration form,
+moves outside 2..300 rpm and velocity outside 6..4500 rpm in acceleration form, and converted
+times outside 100..2000 ms (moves) or 200..2000 ms (velocity). Replacements and velocity changes
+keep native milliseconds, and the bench routes stay native. After the `accepted` reply, an
+operation that used an acceleration prints one `ramp_value` record: `field` `ramp_up` (6083) or
+`ramps` (6083 and 6084), `unit:"ms"`, `native` (the written time), `exact` `[numerator,denominator]`,
+`error` `[numerator,denominator,negative]` (written minus exact), `speed_rpm` (the whole rpm the time
+belongs to), `acceleration_unit`, `frame`, `effective` (the written time's acceleration in that unit)
+and `acceleration_error` (effective minus requested). The reported 0.992 count rate and the ramp
+lasting about 1 % longer are observations in the [speed units guide](speed_units.md), not
+compensated. For example `speed 24 turn/min load` then `accel 4 turn/s2 load` on a 5:1 gear is
+120 motor rpm and 100 ms, and gives the same frames as `speed 120 rpm` and `accel 100 ms`.
 
 Simple moves use the shared `makeSimplePosition` policy: relative steps are
 native displacement, absolute steps and angles use MOTOR coordinates, and mm uses

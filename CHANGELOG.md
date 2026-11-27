@@ -2,6 +2,28 @@
 
 ## Unreleased
 
+### Console speeds and ramps in user units (prompt 60, slice b4, 2026-11-27)
+
+- **Added (console):** `speed VALUE RATE FRAME [round POLICY ERROR]` (its reply previews the whole rpm),
+  `accel VALUE ACCEL FRAME [round POLICY ERROR]` (kept for 6083 and converted per move), a move's
+  `speed VALUE RATE FRAME` in place of the bare rpm and `accel VALUE ACCEL FRAME` before `configured`
+  (6083 only; 6084 stays the `decel` milliseconds), a velocity command's `accel ...` before `configured`
+  (both ramps, one value) and home speeds as `speed VALUE RATE FRAME`. `RATE` accepts `UNIT/min`; `ACCEL` is
+  `rpm/s`, `turns/s2` or `UNIT/s2`. Bare numbers keep their meaning (rpm, ms). The console only parses:
+  `LICHUAN_C::prepareAccelerationRamp` converts and gates every acceleration, and `check_repository` now
+  refuses `prepareRampTime` or `convertAcceleration` in the console sources. Refused with the library's
+  reason before any frame: `decel` in acceleration form, homing ramps in acceleration form, speeds and
+  converted times outside the measured law. Bench routes, replacements and velocity changes stay native.
+- **Added (record):** `ramp_value`, printed once after the `accepted` reply of an operation that used an
+  acceleration: written ms, exact time and its error, the whole rpm, and the effective acceleration and its
+  error in the request's unit (`docs/cli_contract.md`). `scripts/console_jsonl.py` validates it
+  (`ramp_value_problem`), and the S2 and probe runners accept it.
+- **Added (API, examples):** `ProbeMotion::requestVelocity` with an explicit `VelocityProfile`,
+  `setSimpleAcceleration` and an optional `PreparedRampTime` output of `buildSimpleMove`.
+- Tests: the console's unit forms send the same frames as the equivalent millisecond and rpm forms (simple
+  and detailed moves, a velocity run), every refusal sends nothing, and the transcript's `ramp_value` record
+  passes the shared Python record rules.
+
 ### Lichuan ramps from an acceleration (prompt 60, slice b3, 2026-11-27)
 
 - **Added (API):** `LICHUAN_C::prepareAccelerationRamp`, `RampUse`, `RampError` and the measured-law bounds

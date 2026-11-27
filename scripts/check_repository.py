@@ -402,6 +402,23 @@ def record_api_checks(root, errors):
                               f"({name}); use ProbeMotion's record API")
 
 
+# Prompt 60: the console and its shared intent place the library's ramp conversion and never compute
+# their own; prepareAccelerationRamp holds the measured law's gates.
+CONVERSION_NAMES = ("prepareRampTime", "convertAcceleration")
+
+
+def conversion_api_checks(root, errors):
+    paths = sorted((root / "examples/common").glob("ProbeConsole*.cpp")) + [root / "examples/common/MotionIntent.cpp"]
+    for path in paths:
+        if not path.is_file():
+            continue
+        code = re.sub(r"//[^\n]*|/\*[\s\S]*?\*/", " ", read(path, errors))
+        for name in CONVERSION_NAMES:
+            if name in code:
+                errors.append(f"{path.relative_to(root).as_posix()}: the console converts an acceleration itself "
+                              f"({name}); use LICHUAN_C::prepareAccelerationRamp")
+
+
 def check(root, listing=None, build=None):
     """Return actionable diagnostics; never mutate source or generated output."""
     root = Path(root).resolve()
@@ -410,6 +427,7 @@ def check(root, listing=None, build=None):
     metadata_checks(root, errors)
     registration_checks(root, errors)
     record_api_checks(root, errors)
+    conversion_api_checks(root, errors)
     if listing is not None:
         if build is None:
             errors.append("CTest inventory: --build-dir is required with --ctest-json")

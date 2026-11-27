@@ -36,7 +36,8 @@ READ_CHUNK = 256
 IDLE_SECONDS = 0.001
 STATUS = {"OK", "INVALID_CONFIG", "ILLEGAL_VALUE", "UNSUPPORTED", "FRAME_ERROR", "PROTOCOL_ERROR"}
 RECORD_KINDS = {"reply", "terminal", "capability", "help", "axis", "value", "finding",
-                "motion_value", "stop_attempt", "group_stop_axis", "velocity_change", "move_relation", "trace"}
+                "motion_value", "stop_attempt", "group_stop_axis", "velocity_change", "move_relation", "trace",
+                "ramp_value"}
 
 
 def positive(value, name, maximum=60.0):
@@ -597,6 +598,9 @@ class Console:
             if form in ("motion", "stop", "settings"):
                 if form == "motion" and kind in ("velocity_change", "move_relation"):
                     self._motion_change(handle, item)
+                elif form == "motion" and kind == "ramp_value":
+                    if any(row["type"] == kind for row in handle.records):
+                        self._fail("duplicate ramp value")
                 elif form == "motion" and kind == "motion_value":
                     self._motion_value(item)
                     if any(row.get("field") == item["field"] for row in handle.records if row["type"] == kind):

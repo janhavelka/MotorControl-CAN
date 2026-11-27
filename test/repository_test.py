@@ -290,6 +290,19 @@ class RepositoryTests(unittest.TestCase):
             self.write("examples/common/ProbeConsoleRecords.cpp", "void f() { x" + name + "; }\n")
             self.assertTrue(any("names record storage (" + name + ")" in e for e in self.check()), name)
 
+    def test_console_converts_accelerations_only_through_the_profile(self):
+        # Prompt 60: the console places prepareAccelerationRamp's result; a comment is not code.
+        self.write("examples/common/ProbeConsoleMotion.cpp",
+                   "// not prepareRampTime\nvoid f() { L::prepareAccelerationRamp(); }\n")
+        self.assertEqual(self.check(), [])
+        for name in ("prepareRampTime", "convertAcceleration"):
+            for path in ("examples/common/ProbeConsoleMotion.cpp", "examples/common/MotionIntent.cpp"):
+                with self.subTest(name=name, path=path):
+                    self.write(path, "void f() { M::" + name + "(); }\n")
+                    self.assertTrue(any("converts an acceleration itself (" + name + ")" in e
+                                        for e in self.check()), name)
+                    self.write(path, "fixture\n")
+
     def test_each_required_file_is_enforced_independently(self):
         for relative in sorted(FILES):
             with self.subTest(path=relative):

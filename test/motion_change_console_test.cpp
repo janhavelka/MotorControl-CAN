@@ -160,9 +160,65 @@ void closedAndInvalidChangesSendNothing() {
     }
 }
 } // namespace
+// Prompt 60: `accel` in a velocity command fills both ramps from one acceleration through the library
+// (6083 = 6084, the measured condition), giving the frames of the same milliseconds set natively.
+std::string velocityFrames(ConsoleRig& r, const char* command, std::string& output) {
+    const unsigned first = r.wire.sentCount;
+    const size_t start = r.bytes.output.size();
+    r.line(command);
+    r.finish();
+    output = r.bytes.output.substr(start);
+    std::string bytes;
+    for (unsigned i = first; i < r.wire.sentCount; ++i) {
+        const M::Frame& f = r.wire.sent[i];
+        bytes.append(reinterpret_cast<const char*>(&f.id), sizeof f.id);
+        bytes += char(f.dlc);
+        bytes.append(reinterpret_cast<const char*>(f.data), sizeof f.data);
+    }
+    return bytes;
+}
+void velocityAccelerationForm() {
+    std::string output;
+    ConsoleRig native(false);
+    L::VelocityProfile equal;
+    equal.rampUpTimeMs = equal.rampDownTimeMs = 200;
+    CHECK(native.motion.setVelocityPrerequisites(native.state, native.identity, evidence(), equal, options()));
+    const std::string expected = velocityFrames(native, "@1 velocity 120 rpm native 120 configured normal", output);
+    CHECK(native.writes(0x6083, 200) == 1 && native.writes(0x6084, 200) == 1);
+    // The named profile is 100/200 ms here; 120 rpm at 600 rpm/s is 200 ms for both ramps.
+    ConsoleRig units(false);
+    CHECK(velocityFrames(units, "@1 velocity 120 rpm native 120 accel 600 rpm/s native configured normal", output) ==
+          expected);
+    contains(output, "\"type\":\"ramp_value\",\"id\":1,\"command\":\"velocity\",\"operation_id\":1,"
+                     "\"field\":\"ramps\",\"unit\":\"ms\",\"native\":\"200\"");
+    contains(output, "\"speed_rpm\":\"120\",\"acceleration_unit\":\"rpm/s\",\"frame\":\"native\"");
+    // A separate deceleration, a time below the measured 200 ms and a rate outside the law refuse
+    // before any frame; the run without a clause keeps the named profile.
+    ConsoleRig refused(false);
+    const unsigned first = refused.wire.sentCount;
+    const char* commands[] = {"@2 velocity 120 rpm native 120 decel 600 rpm/s native configured normal",
+                              "@3 velocity 120 rpm native 120 accel 1200 rpm/s native configured normal",
+                              "@4 velocity 5 rpm native 120 accel 50 rpm/s native configured normal",
+                              "@5 velocity 120 rpm native 120 accel 600 rpm/s native normal configured"};
+    const char* reasons[] = {"only with 6083 = 6084", "\"status\":\"ILLEGAL_VALUE\"",
+                             "measured at 6 to 4500 rpm", "\"ok\":false"};
+    for (unsigned i = 0; i < 4; ++i) {
+        const size_t start = refused.bytes.output.size();
+        refused.line(commands[i]);
+        for (unsigned n = 0; n < 50; ++n)
+            refused.tick();
+        const std::string reply = refused.bytes.output.substr(start);
+        contains(reply, "\"ok\":false");
+        contains(reply, reasons[i]);
+        CHECK(reply.find("ramp_value") == std::string::npos);
+        CHECK(refused.wire.sentCount == first && !refused.motion.retained());
+    }
+}
+
 int main() {
     explicitVelocityChangeAndRetention();
     approximateChangePublishesItsBound();
     closedAndInvalidChangesSendNothing();
+    velocityAccelerationForm();
     std::printf("motion change console: %u checks\n", checks);
 }

@@ -537,6 +537,11 @@ M::Status ProbeMotion::requestMoveReplacement(uint32_t id, const L::MoveReplacem
 }
 M::Status ProbeMotion::requestVelocity(const M::FiniteVelocityRequest& request, L::StopKind kind,
                                        uint64_t now, uint64_t deadline) noexcept {
+    return requestVelocity(request, velocityProfile_, kind, now, deadline);
+}
+M::Status ProbeMotion::requestVelocity(const M::FiniteVelocityRequest& request,
+                                       const L::VelocityProfile& profile, L::StopKind kind,
+                                       uint64_t now, uint64_t deadline) noexcept {
     const M::Status valid = admission(now, deadline);
     if (!valid)
         return valid;
@@ -555,14 +560,14 @@ M::Status ProbeMotion::requestVelocity(const M::FiniteVelocityRequest& request, 
     if (checked && record)
         checked = L::makeVelocityEvidence(recordEvidence, *record, kind);
     if (checked && record)
-        checked = L::checkRecordVelocity(*record, recordEvidence, request, velocityProfile_, axis_,
+        checked = L::checkRecordVelocity(*record, recordEvidence, request, profile, axis_,
                                          *velocityState_, current_, now, options);
     if (!checked)
         return checked;
     const M::Status status =
         session_.requestVelocity(*velocityState_, *velocityIdentity_,
                                  record ? recordEvidence : velocityEvidence_, request,
-                                 velocityProfile_, axis_, options, deadline, now);
+                                 profile, axis_, options, deadline, now);
     if (status) {
         velocityState_ = nullptr;
         velocityIdentity_ = nullptr;

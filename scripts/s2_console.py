@@ -83,7 +83,7 @@ LIMITS = {"boot_seconds": (20.0, 1, 120), "line_timeout": (5.0, 0.1, 120), "gap_
           "soak": (None, 1, 7 * 24 * 3600)}
 CONTROL = ("cancel", "recover", "stop")  # Reserved reply queues may overtake ordinary replies.
 STREAMED = ("help", "capability", "axis", "value", "finding", "motion_value", "stop_attempt",
-            "velocity_change", "move_relation")
+            "velocity_change", "move_relation", "ramp_value")
 # A line after the session began that only a boot, the smoke hook, the bench image or a firmware
 # failure prints. A human reply starts with its command token and ": ".
 RESTART = re.compile(r"(MotorControl-CAN: [a-z]|ESP-ROM:|rst:0x|SMOKE |S2_BENCH ready)")

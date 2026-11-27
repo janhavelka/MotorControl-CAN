@@ -319,6 +319,11 @@ class ProbeConsole {
     Record groupReply_;
     bool groupReplyUsed_ = false;
     SimpleMoveIntent intent_;
+    /** The last acceleration-form conversion (prepareAccelerationRamp), printed as one ramp_value record
+     * after the accepted reply of the operation that used it. rampField_: 0 none, 1 6083 of a move, 2 both
+     * ramps of a velocity run. */
+    MotorControlCAN::PreparedRampTime ramp_;
+    uint8_t rampField_ = 0;
     uint8_t debug_ = 0;
     // Only the fields the console publishes. Keeping Completion out saves scarce S2 RAM.
     struct TraceRecord {
@@ -368,6 +373,11 @@ class ProbeConsole {
     void velocityChangeAccepted(const ConsoleLine& line, uint32_t operation) noexcept;
     void motionIntentReply(const ConsoleLine& line, bool inspect) noexcept;
     void motionAccepted(Operation& operation) noexcept;
+    void rampAccepted(const Operation& operation) noexcept;
+    MotorControlCAN::Status moveRamp(uint8_t kind, const MotorControlCAN::AccelerationRequest& acceleration,
+                                     const MotorControlCAN::VelocityRequest& speed,
+                                     const MotorControlCAN::AxisConfig& axis,
+                                     MotorControlCAN::LICHUAN_C::MoveProfile& profile) noexcept;
     bool motionValues(Operation& operation) noexcept;
     bool motionTerminal(Operation& operation) noexcept;
     void dispatchGroupStop(const ConsoleLine& line, uint64_t now) noexcept;

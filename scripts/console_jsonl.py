@@ -103,6 +103,39 @@ def motion_change_problem(record):
     return None
 
 
+def ramp_value_problem(record):
+    """Validate a prompt 60 ramp_value record: the library's conversion of an acceleration into a native
+    ramp time (prepareAccelerationRamp), printed after the accepted reply. None for other types."""
+    if record.get("type") != "ramp_value":
+        return None
+
+    def decimal(value, signed=False):
+        pattern = r"-?(0|[1-9][0-9]*)" if signed else r"0|[1-9][0-9]*"
+        return type(value) is str and re.fullmatch(pattern, value) is not None and len(value) <= 20
+
+    def fraction(value, flag=False):
+        return (type(value) is list and len(value) == (3 if flag else 2) and decimal(value[0], signed=not flag) and
+                decimal(value[1]) and int(value[1]) != 0 and (not flag or type(value[2]) is bool))
+
+    expected = {"move": "ramp_up", "moveby": "ramp_up", "moveto": "ramp_up", "velocity": "ramps"}
+    if (not is_uint32(record.get("operation_id"), 1) or record.get("command") not in expected or
+            record.get("field") != expected[record["command"]] or record.get("unit") != "ms" or
+            not decimal(record.get("native")) or not 1 <= int(record["native"]) <= 2000 or
+            not fraction(record.get("exact")) or int(record["exact"][0]) <= 0 or
+            not fraction(record.get("error"), flag=True) or not decimal(record.get("speed_rpm"), signed=True) or
+            type(record.get("acceleration_unit")) is not str or record.get("frame") not in ("native", "motor", "load") or
+            not fraction(record.get("effective")) or int(record["effective"][0]) <= 0 or
+            not fraction(record.get("acceleration_error"), flag=True)):
+        return "invalid ramp value"
+    # The rounded time is within one millisecond of the exact one.
+    exact, native = record["exact"], int(record["native"])
+    error = record["error"]
+    if int(error[0]) >= int(error[1]) or (native * int(exact[1]) - int(exact[0])) * int(error[1]) != \
+            (-1 if error[2] else 1) * int(error[0]) * int(exact[1]):
+        return "ramp value error disagrees with its exact and native times"
+    return None
+
+
 def record_problems(line):
     """(record or None, problems) for one received line, bytes including its newline.
 
@@ -141,4 +174,7 @@ def record_problems(line):
         problems.append("id %r is not a uint32 integer" % (identity,))
     elif identity == 0 and record.get("type") != "trace":
         problems.append("id 0 on a %r record; only unsolicited traces carry id 0" % (record.get("type"),))
+    ramp = ramp_value_problem(record)
+    if ramp:
+        problems.append(ramp)
     return record, problems

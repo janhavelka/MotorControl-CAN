@@ -137,6 +137,14 @@ def main():
                 assert type(value["error"][2]) is bool
             if value["unit"] == "steps":
                 assert isinstance(value["endpoint_native"], str) and type(value["relative"]) is bool
+        # Prompt 60: an acceleration-form move prints the library's conversion once, after its receipt.
+        ramps = [r for r in motion if r["type"] == "ramp_value"]
+        assert ramps and all(r["unit"] == "ms" and isinstance(r["native"], str) and
+                             r["field"] == "ramp_up" for r in ramps)
+        for ramp in ramps:
+            receipt = [i for i, r in enumerate(motion) if r["type"] == "reply" and r.get("result") == "accepted"
+                       and r["id"] == ramp["id"] and r["operation_id"] == ramp["operation_id"]]
+            assert receipt and receipt[0] < motion.index(ramp), "ramp value without an earlier receipt"
         terminals = [r for r in motion if r["type"] == "terminal"]
         assert any(r["command"] == "move" and r["ok"] for r in terminals)
         assert any(r["command"] == "move" and r["uncertain"] for r in terminals)

@@ -585,7 +585,7 @@
           "ctest": "acceleration_ramp"
         }
       ],
-      "api_only_reason": "The console composes native target preparation, admission, transmission, observation, withdrawal and terminal phases through AxisSession; these phases are not independently executable commands. prepareAccelerationRamp converts an acceleration into the native 6083 (and a velocity run's 6083 = 6084) of a start from rest inside the measured law; its result enters the native profile, and no console form calls it yet.",
+      "api_only_reason": "The console composes native target preparation, admission, transmission, observation, withdrawal and terminal phases through AxisSession; these phases are not independently executable commands. prepareAccelerationRamp converts an acceleration into the native 6083 (and a velocity run's 6083 = 6084) of a start from rest inside the measured law; the move and velocity commands' accel forms reach it.",
       "console": [
         {
           "command": "move",
@@ -610,6 +610,32 @@
           ],
           "api": "ProbeMotion::requestMove/requestMoveReplacement/AxisSession",
           "dispatch": "ProbeMotion::requestMoveReplacement",
+          "console_dispatch": {
+            "path": "examples/common/ProbeConsoleMotion.cpp",
+            "function": "ProbeConsole::dispatchMotion"
+          }
+        },
+        {
+          "command": "move",
+          "entry": "prepareAccelerationRamp",
+          "implementation": [
+            "examples/common/ProbeConsoleMotion.cpp"
+          ],
+          "api": "ProbeMotion::requestMove/requestMoveReplacement/AxisSession",
+          "dispatch": "ProbeConsole::moveRamp",
+          "console_dispatch": {
+            "path": "examples/common/ProbeConsoleMotion.cpp",
+            "function": "ProbeConsole::dispatchMotion"
+          }
+        },
+        {
+          "command": "velocity",
+          "entry": "prepareAccelerationRamp",
+          "implementation": [
+            "examples/common/ProbeConsoleMotion.cpp"
+          ],
+          "api": "makeFiniteVelocity/ProbeMotion::requestVelocity/requestVelocityChange",
+          "dispatch": "ProbeConsole::dispatchMotion",
           "console_dispatch": {
             "path": "examples/common/ProbeConsoleMotion.cpp",
             "function": "ProbeConsole::dispatchMotion"

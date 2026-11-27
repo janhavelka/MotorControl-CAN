@@ -290,6 +290,119 @@ void consoleMoveRoutes() {
     }
 }
 
+// Prompt 60: the unit forms reach native traffic only through the library's conversion. MoveRig's axis
+// has 3200 steps per motor turn and a 5:1 gear, so 24 load turn/min is 120 motor rpm and 4 load
+// turn/s2 (20 motor turns/s2) is 1200 rpm/s: 100 ms at 120 rpm, the same as `accel 100 ms`.
+std::string framesFrom(const ConsoleRig& r, unsigned first) {
+    std::string bytes;
+    for (unsigned i = first; i < r.wire.sentCount; ++i) {
+        const M::Frame& f = r.wire.sent[i];
+        bytes.append(reinterpret_cast<const char*>(&f.id), sizeof f.id);
+        bytes += char(f.dlc);
+        bytes.append(reinterpret_cast<const char*>(f.data), sizeof f.data);
+    }
+    return bytes;
+}
+std::string runMoveConsole(const char* const* setup, unsigned count, const char* move, std::string* output) {
+    ConsoleRig r;
+    for (unsigned i = 0; i < count; ++i)
+        contains(r.command(setup[i]), "\"ok\":true");
+    r.prepare();
+    const unsigned first = r.wire.sentCount;
+    const std::string reply = r.command(move);
+    contains(reply, "\"ok\":true");
+    const L::MoveContext* native = r.motion.nativeMove();
+    CHECK(native && native->state == M::ActionState::SUCCEEDED);
+    CHECK(native->parameters.settings.rampUpTimeMs == 100 && native->parameters.settings.rampDownTimeMs == 200);
+    CHECK(downloadAt(r, first + 2, 0x6083, 4, 100));
+    if (output)
+        *output = reply;
+    return framesFrom(r, first);
+}
+void accelerationFormsGiveTheNativeTraffic() {
+    scenario = "acceleration and speed unit forms give the millisecond form's traffic";
+    const char* native[] = {"@1 speed 120 rpm", "@2 accel 100 ms", "@3 decel 200 ms"};
+    const char* units[] = {"@1 speed 24 turn/min load", "@2 accel 4 turn/s2 load", "@3 decel 200 ms"};
+    const std::string simple = runMoveConsole(native, 3, "@4 moveby 16000 steps", nullptr);
+    std::string reply;
+    CHECK(runMoveConsole(units, 3, "@4 moveby 16000 steps", &reply) == simple);
+    transcript += reply; // console_protocol_test parses this real ramp_value record.
+    // The record reports the library's own result for the same inputs.
+    contains(reply, "\"type\":\"ramp_value\",\"id\":4,\"command\":\"moveby\",\"operation_id\":1,"
+                    "\"field\":\"ramp_up\",\"unit\":\"ms\",\"native\":\"100\",\"exact\":[\"100\",\"1\"],"
+                    "\"error\":[\"0\",\"1\",false],\"speed_rpm\":\"120\",\"acceleration_unit\":\"turn/s2\","
+                    "\"frame\":\"load\",\"effective\":[\"4\",\"1\"],\"acceleration_error\":[\"0\",\"1\",false]");
+    const std::string detailed = runMoveConsole(native, 3, "@4 move absolute 16000 steps native 120 configured", nullptr);
+    const char* decelOnly[] = {"@3 decel 200 ms"};
+    CHECK(runMoveConsole(decelOnly, 1,
+                         "@4 move absolute 16000 steps native speed 24 turn/min load accel 4 turn/s2 load configured",
+                         &reply) == detailed);
+    contains(reply, "\"type\":\"ramp_value\"");
+    contains(reply, "\"command\":\"move\"");
+    // rpm/s in the native frame and an inline clause with its own rounding: 120 rpm at 1199 rpm/s is
+    // 120000/1199 = 100.08 ms, nearest 100; the effective acceleration is 1200 rpm/s, error 1 rpm/s.
+    CHECK(runMoveConsole(decelOnly, 1,
+                         "@4 move absolute 16000 steps native 120 accel 1199 rpm/s native round nearest 1 configured",
+                         &reply) == detailed);
+    contains(reply, "\"exact\":[\"120000\",\"1199\"],\"error\":[\"100\",\"1199\",true]");
+    contains(reply, "\"effective\":[\"1200\",\"1\"],\"acceleration_error\":[\"1\",\"1\",false]");
+    M::PreparedRampTime expected;
+    M::AccelerationRequest acceleration;
+    acceleration.value = M::Rational(1199);
+    acceleration.unit = M::AccelerationUnit(M::PositionUnit::TURNS, M::TimeUnit::MINUTE, M::TimeUnit::SECOND);
+    acceleration.configurationGeneration = axisConfig().binding.configurationGeneration;
+    acceleration.rounding = M::Rounding::NEAREST;
+    acceleration.maximumAccelerationError = M::Rational(1);
+    CHECK(L::prepareAccelerationRamp(expected, L::RampUse::MOVE_START, acceleration, moveRequest(16000, 120).speed,
+                                     axisConfig()));
+    CHECK(expected.effectiveMs == 100 && expected.exactMs.numerator == 120000 && expected.exactMs.denominator == 1199);
+}
+void accelerationFormRefusalsBeforeTraffic() {
+    scenario = "acceleration-form refusals before any frame";
+    ConsoleRig r;
+    contains(r.command("@1 speed 120 rpm"), "\"ok\":true");
+    contains(r.command("@2 accel 100 ms"), "\"ok\":true");
+    contains(r.command("@3 decel 200 ms"), "\"ok\":true");
+    r.prepare();
+    const unsigned first = r.wire.sentCount;
+    struct Refusal { const char* command; const char* reason; };
+    const Refusal refusals[] = {
+        {"@4 decel 4 turn/s2 load", "move deceleration (6084) is unmeasured"},
+        {"@5 move absolute 16000 steps native 120 decel 4 turn/s2 load configured",
+         "move deceleration (6084) is unmeasured"},
+        {"@6 move absolute 16000 steps native 400 accel 4000 rpm/s native configured", "measured at 2 to 300 rpm"},
+        {"@7 move absolute 16000 steps native 120 accel 12000 rpm/s native configured", "\"status\":\"ILLEGAL_VALUE\""},
+        {"@8 home 17 120 60 accel 600 rpm/s native zero", "the homing ramp (609A) is unmeasured"},
+        {"@9 move absolute 16000 steps native 120 accel 4 rad/s2 motor configured", "\"status\":\"UNSUPPORTED\""},
+        {"@10 move absolute 16000 steps native 120 accel 0 rpm/s native configured", "\"ok\":false"},
+        {"@11 move absolute 16000 steps native 120 accel 4 us load configured", "\"ok\":false"},
+        {"@12 accel 4 turn/s2 sideways", "\"ok\":false"},
+        {"@13 speed 5 mm/s load", "\"ok\":false"}, // No lead on this axis.
+    };
+    for (const Refusal& refusal : refusals) {
+        const std::string output = r.command(refusal.command);
+        contains(output, "\"ok\":false");
+        contains(output, refusal.reason);
+        CHECK(output.find("ramp_value") == std::string::npos);
+        CHECK(!r.motion.retained() && r.wire.sentCount == first);
+    }
+    // An acceleration set for 6083 converts per move: a speed outside the law refuses the move, and
+    // `accel MS ms` returns 6083 to milliseconds.
+    contains(r.command("@14 accel 4 turn/s2 load"), "\"ok\":true");
+    const std::string inspected = r.command("@15 accel");
+    contains(inspected, "\"value\":[\"4\",\"1\"],\"unit\":\"turn/s2\",\"frame\":\"load\"");
+    contains(r.command("@16 speed 400 rpm"), "\"ok\":true");
+    const std::string refused = r.command("@17 moveby 16000 steps");
+    contains(refused, "\"ok\":false");
+    contains(refused, "measured at 2 to 300 rpm");
+    CHECK(!r.motion.retained() && r.wire.sentCount == first);
+    contains(r.command("@18 accel 100 ms"), "\"ok\":true");
+    contains(r.command("@19 accel"), "\"value\":\"100\",\"unit\":\"ms\"");
+    // A set speed in a unit previews its whole rpm and names its unit and frame.
+    contains(r.command("@20 speed 25 turn/min load"), "\"rpm\":\"125\",\"rpm_error\":[\"0\",\"1\",false]");
+    contains(r.command("@21 speed"), "\"value\":[\"25\",\"1\"],\"unit\":\"rpm\",\"frame\":\"load\"");
+}
+
 void simpleIntentNeverUsesDefaults() {
     scenario = "simple move requires every explicit host choice";
     for (unsigned missing = 0; missing < 7; ++missing) {
@@ -1057,6 +1170,8 @@ int main(int argc, char** argv) {
     startupAndRejectedGrammar();
     consoleMoveRoutes();
     simpleIntentNeverUsesDefaults();
+    accelerationFormsGiveTheNativeTraffic();
+    accelerationFormRefusalsBeforeTraffic();
     rpmDestinationIsCheckedBeforeAdmission();
     stopNeverReplacesUnknownMotion();
     congestedEscalationKeepsIndependentResults();

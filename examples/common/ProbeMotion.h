@@ -373,6 +373,16 @@ class ProbeMotion {
     MotorControlCAN::Status requestVelocity(const MotorControlCAN::FiniteVelocityRequest& request,
                                             MotorControlCAN::LICHUAN_C::StopKind stopKind,
                                             uint64_t nowUs, uint64_t deadlineUs) noexcept;
+    /** As requestVelocity, with an explicit native profile for this run in place of the one the setter
+     * named, for example both ramps from LICHUAN_C::prepareAccelerationRamp (VELOCITY_START). The
+     * profile is checked by the record and the native preparation exactly as the named one.
+     * @param request Exact rate and duration. @param profile Explicit native ramps for this run.
+     * @param stopKind Explicit normal/fast choice. @param nowUs Supplied microseconds.
+     * @param deadlineUs Exclusive future cutoff. @return Same atomic request contract. */
+    MotorControlCAN::Status requestVelocity(const MotorControlCAN::FiniteVelocityRequest& request,
+                                            const MotorControlCAN::LICHUAN_C::VelocityProfile& profile,
+                                            MotorControlCAN::LICHUAN_C::StopKind stopKind,
+                                            uint64_t nowUs, uint64_t deadlineUs) noexcept;
     /** Change the rate of this helper's retained active velocity run once, preserving its stop. A run under
      * a bound measured record (MotionResult::record nonzero) is refused with ActionError STATE before any
      * TX: no record measured a change (prompt 58); an attended-experiment run is unchanged.

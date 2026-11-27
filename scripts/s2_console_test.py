@@ -356,6 +356,28 @@ class Correlation(unittest.TestCase):
             self.assertIsNotNone(console_jsonl.motion_change_problem(dict(approximate, type="velocity_change",
                                                                         command="velocity", **change)))
 
+    def test_ramp_value_shape_and_arithmetic(self):
+        # Prompt 60: 120 rpm at 1199 rpm/s is 120000/1199 ms, rounded to 100 (error -100/1199 ms).
+        fields = dict(operation_id=1, field="ramp_up", unit="ms", native="100", exact=["120000", "1199"],
+                      error=["100", "1199", True], speed_rpm="120", acceleration_unit="rpm/s", frame="native",
+                      effective=["1200", "1"], acceleration_error=["1", "1", False])
+        good = dict(fields, type="ramp_value", command="move")
+        self.assertIsNone(console_jsonl.ramp_value_problem(good))
+        self.assertIsNone(console_jsonl.ramp_value_problem(dict(good, type="motion_value")))
+        tracker = self.tracker()
+        self.add(tracker, b"@1 move absolute 1 steps native 120 accel 1199 rpm/s native round nearest 1 configured\n")
+        tracker.record(self.parse(reply(1, "move", result="accepted", operation_id=1)), 0.1)
+        tracker.record(self.parse(record(1, "ramp_value", "move", **fields)), 0.2)
+        self.assertFalse(tracker.problems)
+        for changes in ({"field": "ramps"}, {"unit": "s"}, {"native": "0"}, {"native": "2001"},
+                        {"error": ["100", "1199", False]}, {"error": ["1199", "1199", True]},
+                        {"exact": ["120000", "0"]}, {"frame": "wheel"}, {"effective": ["0", "1"]},
+                        {"acceleration_error": ["1", "1"]}, {"operation_id": 0}, {"speed_rpm": 120}):
+            with self.subTest(changes=changes):
+                self.assertIsNotNone(console_jsonl.ramp_value_problem(dict(good, **changes)))
+        self.assertIsNone(console_jsonl.ramp_value_problem(dict(good, command="velocity", field="ramps")))
+        self.assertIsNotNone(console_jsonl.ramp_value_problem(dict(good, command="home")))
+
     def test_move_relation_retains_pair_and_rejects_foreign_identity(self):
         for foreign in (False, True):
             tracker = self.tracker()

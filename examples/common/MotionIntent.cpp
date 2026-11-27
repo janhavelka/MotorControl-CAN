@@ -91,10 +91,25 @@ M::Status setSimpleRamp(SimpleMoveIntent& intent, bool acceleration,
     if (acceleration) {
         intent.rampUpMs = static_cast<uint32_t>(reduced.numerator);
         intent.rampUpKnown = true;
+        intent.accelerationKnown = false;
     } else {
         intent.rampDownMs = static_cast<uint32_t>(reduced.numerator);
         intent.rampDownKnown = true;
     }
+    return M::Ok();
+}
+M::Status setSimpleAcceleration(SimpleMoveIntent& intent, const M::AccelerationRequest& acceleration,
+                                const M::AxisConfig& axis) noexcept {
+    const M::AccelerationRequest& a = acceleration;
+    if (!a.value.denominator || a.value.numerator <= 0 || a.unit.position > M::PositionUnit::MILLIMETRES ||
+        a.unit.velocityTime > M::TimeUnit::MILLISECOND || a.unit.accelerationTime > M::TimeUnit::MILLISECOND ||
+        a.frame > M::CoordinateFrame::LOAD || a.rounding > M::Rounding::CEIL ||
+        !a.maximumAccelerationError.denominator || a.maximumAccelerationError.numerator < 0)
+        return range("acceleration must be a positive exact magnitude with a valid unit, frame and rounding");
+    if (!a.configurationGeneration || a.configurationGeneration != axis.binding.configurationGeneration)
+        return invalid("acceleration configuration generation is stale");
+    intent.acceleration = a;
+    intent.accelerationKnown = true;
     return M::Ok();
 }
 M::Status setSimpleSetup(SimpleMoveIntent& intent, L::MoveSetup setup) noexcept {
@@ -117,11 +132,11 @@ M::Status makeCommandScale(const M::Rational& stepsPerTurn, M::UnitScale& output
 }
 M::Status buildSimpleMove(const SimpleMoveIntent& intent, const M::PositionRequest& position,
                           const M::AxisConfig& axis, bool simpleAbsolute, M::MoveRequest& request,
-                          L::MoveProfile& profile) noexcept {
+                          L::MoveProfile& profile, M::PreparedRampTime* ramp) noexcept {
     const M::Status configured = M::validateAxisConfig(axis);
     if (!configured)
         return configured;
-    if (!intent.speedKnown || !intent.rampUpKnown || !intent.rampDownKnown)
+    if (!intent.speedKnown || !(intent.rampUpKnown || intent.accelerationKnown) || !intent.rampDownKnown)
         return invalid("set speed, accel and decel before a simple move");
     if (axis.units.commandStepsPerMotorTurn.source == M::ScaleSource::UNKNOWN)
         return invalid("declare command steps per motor turn before a simple move");
@@ -134,8 +149,8 @@ M::Status buildSimpleMove(const SimpleMoveIntent& intent, const M::PositionReque
     const unsigned basis = static_cast<unsigned>(position.basis);
     if (!simpleAbsolute && (basis > 2 || !(axis.supportedRelativeBases & (1u << basis))))
         return invalid("selected relative basis is not supported; no fallback is permitted");
-    if (!intent.rampUpMs || intent.rampUpMs > 2000 || !intent.rampDownMs ||
-        intent.rampDownMs > 2000)
+    if ((!intent.accelerationKnown && (!intent.rampUpMs || intent.rampUpMs > 2000)) ||
+        !intent.rampDownMs || intent.rampDownMs > 2000)
         return range("a move requires qualified ramp times in 1..2000 milliseconds");
     M::PreparedVelocityTarget checked;
     const M::Status speed = rate(intent.speed, axis, false, false, checked);
@@ -148,8 +163,19 @@ M::Status buildSimpleMove(const SimpleMoveIntent& intent, const M::PositionReque
     native.rampUpTimeMs = intent.rampUpMs;
     native.rampDownTimeMs = intent.rampDownMs;
     native.setup = intent.setup;
+    // The library converts and gates the acceleration form; this layer only places its result.
+    M::PreparedRampTime converted;
+    if (intent.accelerationKnown) {
+        const M::Status status = L::prepareAccelerationRamp(converted, L::RampUse::MOVE_START,
+                                                            intent.acceleration, intent.speed, axis);
+        if (!status)
+            return status;
+        native.rampUpTimeMs = converted.effectiveMs;
+    }
     request = candidate;
     profile = native;
+    if (ramp && intent.accelerationKnown)
+        *ramp = converted;
     return M::Ok();
 }
 M::Status makeFiniteVelocity(const M::VelocityRequest& velocity, uint64_t durationMs,

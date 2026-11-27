@@ -34,6 +34,7 @@ bool spatialUnit(const char* text, M::PositionUnit& value) {
         }
     return false;
 }
+// rpm, turns/s, UNIT/s or UNIT/min (prompt 60 adds the per-minute spellings).
 bool rateUnit(const char* text, M::VelocityUnit& value) {
     if (eq(text, "rpm")) {
         value = M::VelocityUnit(M::PositionUnit::TURNS, M::TimeUnit::MINUTE);
@@ -44,12 +45,48 @@ bool rateUnit(const char* text, M::VelocityUnit& value) {
         return true;
     }
     const size_t length = std::strlen(text);
+    const bool minute = length > 4 && !std::strcmp(text + length - 4, "/min");
+    const size_t suffix = minute ? 4 : 2;
     char spatial[12] = {};
-    if (length < 3 || length - 2 >= sizeof spatial || std::strcmp(text + length - 2, "/s"))
+    if (length <= suffix || length - suffix >= sizeof spatial ||
+        (!minute && std::strcmp(text + length - 2, "/s")))
         return false;
-    std::memcpy(spatial, text, length - 2);
-    value.time = M::TimeUnit::SECOND;
+    std::memcpy(spatial, text, length - suffix);
+    value.time = minute ? M::TimeUnit::MINUTE : M::TimeUnit::SECOND;
     return spatialUnit(spatial, value.position);
+}
+// rpm/s, turns/s2 or UNIT/s2 (prompt 60). The console only names the unit; the library converts it.
+bool accelerationUnit(const char* text, M::AccelerationUnit& value) {
+    if (eq(text, "rpm/s")) {
+        value = M::AccelerationUnit(M::PositionUnit::TURNS, M::TimeUnit::MINUTE, M::TimeUnit::SECOND);
+        return true;
+    }
+    if (eq(text, "turns/s2")) {
+        value = M::AccelerationUnit(M::PositionUnit::TURNS);
+        return true;
+    }
+    const size_t length = std::strlen(text);
+    char spatial[12] = {};
+    if (length < 4 || length - 3 >= sizeof spatial || std::strcmp(text + length - 3, "/s2"))
+        return false;
+    std::memcpy(spatial, text, length - 3);
+    value.velocityTime = value.accelerationTime = M::TimeUnit::SECOND;
+    return spatialUnit(spatial, value.position);
+}
+// The spelling accelerationUnit accepts for a unit it produced.
+void accelerationName(const M::AccelerationUnit& unit, char (&output)[16]) {
+    const char* names[] = {"steps", "fullsteps", "counts", "turn", "deg", "rad", "mm"};
+    const unsigned n = static_cast<unsigned>(unit.position);
+    if (unit.position == M::PositionUnit::TURNS && unit.velocityTime == M::TimeUnit::MINUTE &&
+        unit.accelerationTime == M::TimeUnit::SECOND)
+        std::snprintf(output, sizeof output, "rpm/s");
+    else
+        std::snprintf(output, sizeof output, "%s/s2", n < 7 ? names[n] : "unknown");
+}
+const char* frameName(M::CoordinateFrame value) {
+    return value == M::CoordinateFrame::NATIVE  ? "native"
+           : value == M::CoordinateFrame::MOTOR ? "motor"
+                                                : "load";
 }
 bool frame(const char* text, M::CoordinateFrame& value) {
     if (eq(text, "native"))
@@ -82,24 +119,28 @@ bool setup(const char* text, L::MoveSetup& value) {
         return false;
     return true;
 }
+bool policyWord(const char* policy, M::Rounding& value) {
+    if (eq(policy, "exact"))
+        value = M::Rounding::EXACT;
+    else if (eq(policy, "nearest"))
+        value = M::Rounding::NEAREST;
+    else if (eq(policy, "zero"))
+        value = M::Rounding::TOWARD_ZERO;
+    else if (eq(policy, "floor"))
+        value = M::Rounding::FLOOR;
+    else if (eq(policy, "ceil"))
+        value = M::Rounding::CEIL;
+    else
+        return false;
+    return true;
+}
 template <class Request>
 bool rounding(const ConsoleLine& line, size_t& next, Request& request, M::PositionUnit unit) {
     if (next == line.count)
         return true;
     if (!eq(line.token(next++), "round") || next + 1 >= line.count)
         return false;
-    const char* policy = line.token(next++);
-    if (eq(policy, "exact"))
-        request.rounding = M::Rounding::EXACT;
-    else if (eq(policy, "nearest"))
-        request.rounding = M::Rounding::NEAREST;
-    else if (eq(policy, "zero"))
-        request.rounding = M::Rounding::TOWARD_ZERO;
-    else if (eq(policy, "floor"))
-        request.rounding = M::Rounding::FLOOR;
-    else if (eq(policy, "ceil"))
-        request.rounding = M::Rounding::CEIL;
-    else
+    if (!policyWord(line.token(next++), request.rounding))
         return false;
     if (!M::parseExactNumber(line.token(next++), request.maximumQuantizationError) ||
         request.maximumQuantizationError.numerator < 0)
@@ -121,8 +162,65 @@ M::VelocityRequest rpm(const M::Rational& value, const M::AxisConfig& axis) {
     request.configurationGeneration = axis.binding.configurationGeneration;
     return request;
 }
+// An optional `round POLICY ERROR` right after a speed or ramp clause; such a clause always comes
+// before `configured`, so it cannot be taken for the trailing position or rate rounding.
+bool clauseRounding(const ConsoleLine& line, size_t& next, M::Rounding& value, M::Rational& allowance) {
+    if (!eq(line.token(next), "round"))
+        return true;
+    ++next;
+    return policyWord(line.token(next++), value) && M::parseExactNumber(line.token(next++), allowance) &&
+           allowance.numerator >= 0;
+}
+// VALUE RATE FRAME [round POLICY ERROR]: a speed in user units (prompt 60).
+bool unitSpeed(const ConsoleLine& line, size_t& next, M::Generation generation, M::VelocityRequest& output) {
+    M::VelocityRequest request;
+    request.configurationGeneration = generation;
+    if (!M::parseExactNumber(line.token(next++), request.value) || !rateUnit(line.token(next++), request.unit) ||
+        !frame(line.token(next++), request.frame) ||
+        !clauseRounding(line, next, request.rounding, request.maximumQuantizationError))
+        return false;
+    output = request;
+    return true;
+}
+// SPEED: a bare number is motor rpm in the native frame, as before; `speed VALUE RATE FRAME [round ...]`
+// names a unit.
+bool speedClause(const ConsoleLine& line, size_t& next, const M::AxisConfig& axis, M::VelocityRequest& output) {
+    if (!eq(line.token(next), "speed")) {
+        M::Rational value;
+        if (!M::parseExactNumber(line.token(next++), value))
+            return false;
+        output = rpm(value, axis);
+        return true;
+    }
+    ++next;
+    return unitSpeed(line, next, axis.binding.configurationGeneration, output);
+}
+// VALUE ACCEL FRAME [round POLICY ERROR]: an acceleration magnitude for the library to convert.
+bool unitAcceleration(const ConsoleLine& line, size_t& next, M::Generation generation,
+                      M::AccelerationRequest& output) {
+    M::AccelerationRequest request;
+    request.configurationGeneration = generation;
+    if (!M::parseExactNumber(line.token(next++), request.value) ||
+        !accelerationUnit(line.token(next++), request.unit) || !frame(line.token(next++), request.frame) ||
+        !clauseRounding(line, next, request.rounding, request.maximumAccelerationError))
+        return false;
+    output = request;
+    return true;
+}
+// [accel|decel VALUE ACCEL FRAME [round POLICY ERROR]]: kind 0 absent, 1 accel, 2 decel.
+bool rampClause(const ConsoleLine& line, size_t& next, const M::AxisConfig& axis, uint8_t& kind,
+                M::AccelerationRequest& output) {
+    const bool up = eq(line.token(next), "accel"), down = eq(line.token(next), "decel");
+    kind = 0;
+    if (!up && !down)
+        return true;
+    ++next;
+    kind = up ? 1 : 2;
+    return unitAcceleration(line, next, axis.binding.configurationGeneration, output);
+}
 bool parseMove(const ConsoleLine& line, const M::AxisConfig& axis, const SimpleMoveIntent& intent,
-               M::MoveRequest& request, L::MoveProfile& profile, size_t offset = 0) {
+               M::MoveRequest& request, L::MoveProfile& profile, uint8_t& rampKind,
+               M::AccelerationRequest& ramp, size_t offset = 0) {
     auto& p = request.position;
     p.configurationGeneration = axis.binding.configurationGeneration;
     p.relative = eq(line.token(1 + offset), "relative");
@@ -148,10 +246,14 @@ bool parseMove(const ConsoleLine& line, const M::AxisConfig& axis, const SimpleM
         else if (!eq(tie, "reject"))
             return false;
     }
-    M::Rational speed;
-    if (!M::parseExactNumber(line.token(next++), speed) || !eq(line.token(next++), "configured"))
+    if (!speedClause(line, next, axis, request.speed) || !rampClause(line, next, axis, rampKind, ramp) ||
+        !eq(line.token(next++), "configured"))
         return false;
-    request.speed = rpm(speed, axis);
+    // The intent's acceleration form applies to `configured` moves unless this line names its own.
+    if (!rampKind && intent.accelerationKnown) {
+        rampKind = 1;
+        ramp = intent.acceleration;
+    }
     profile.rampUpTimeMs = intent.rampUpKnown ? intent.rampUpMs : UINT32_MAX;
     profile.rampDownTimeMs = intent.rampDownKnown ? intent.rampDownMs : UINT32_MAX;
     profile.setup = intent.setup;
@@ -241,10 +343,18 @@ M::Status requestReplacement(const ConsoleLine& line, const SimpleMoveIntent& in
             retainedIntent.rampUpMs = native->profile.rampUpTimeMs;
             retainedIntent.rampDownMs = native->profile.rampDownTimeMs;
             retainedIntent.setup = L::MoveSetup::WRITE_ALL;
-            parsed = parseMove(line, axis, retainedIntent, request.request, request.profile,
-                               policy ? 3 : 2) &&
+            retainedIntent.accelerationKnown = false;
+            uint8_t rampKind = 0;
+            M::AccelerationRequest ramp;
+            parsed = parseMove(line, axis, retainedIntent, request.request, request.profile, rampKind,
+                               ramp, policy ? 3 : 2) &&
                      !request.request.position.relative && !request.request.position.wrapped;
             request.fields = 3;
+            if (parsed && rampKind) {
+                M::PreparedRampTime unused;
+                return L::prepareAccelerationRamp(unused, L::RampUse::MOVE_REPLACEMENT, ramp,
+                                                  request.request.speed, axis);
+            }
         }
         if (parsed)
             return motion.requestMoveReplacement(originalOperation, request, now);
@@ -427,6 +537,7 @@ void ProbeConsole::dispatchMotion(const ConsoleLine& line, uint64_t now) noexcep
               false, status.code, status.detail);
     };
     const M::Status syntax(M::Err::ILLEGAL_VALUE, 0, "invalid_arguments_or_gated_policy");
+    rampField_ = 0;
     // Inspection needs no selected drive, native evidence or controller.
     if (eq(name, "home") && line.count == 2 && eq(line.token(1), "methods")) {
         motionIntentReply(line, true);
@@ -446,14 +557,34 @@ void ProbeConsole::dispatchMotion(const ConsoleLine& line, uint64_t now) noexcep
             reject(status);
             return;
         }
-    } else if (up || down) {
+    } else if ((up || down) && (line.count == 2 || (line.count == 3 && eq(line.token(2), "ms")))) {
         M::Rational value;
-        if ((line.count != 2 && line.count != 3) || (line.count == 3 && !eq(line.token(2), "ms")) ||
-            !M::parseExactNumber(line.token(1), value)) {
+        if (!M::parseExactNumber(line.token(1), value)) {
             reject(syntax);
             return;
         }
         const M::Status status = setSimpleRamp(intent, up, value);
+        if (!status) {
+            reject(status);
+            return;
+        }
+    } else if (up || down) {
+        // VALUE ACCEL FRAME [round POLICY ERROR] (prompt 60): accel keeps it for 6083; decel in that
+        // form is the library's refusal, with its reason.
+        M::AccelerationRequest request;
+        size_t next = 1;
+        if (!unitAcceleration(line, next, motion ? motion->axisConfig().binding.configurationGeneration : 0,
+                              request) || next != line.count) {
+            reject(syntax);
+            return;
+        }
+        if (!motion) {
+            reject(M::Status(M::Err::UNSUPPORTED, 0, "attach_actual_axis_and_explicit_native_prerequisites"));
+            return;
+        }
+        const M::Status status = up ? setSimpleAcceleration(intent, request, motion->axisConfig())
+                                    : L::prepareAccelerationRamp(ramp_, L::RampUse::MOVE_DECELERATION, request,
+                                                                 intent.speed, motion->axisConfig());
         if (!status) {
             reject(status);
             return;
@@ -493,14 +624,21 @@ void ProbeConsole::dispatchMotion(const ConsoleLine& line, uint64_t now) noexcep
             return;
         }
         if (speed) {
+            // A bare number or `VALUE rpm` is motor rpm in the native frame; `VALUE RATE FRAME
+            // [round POLICY ERROR]` names a unit (prompt 60).
             M::Rational value;
-            if ((line.count != 2 && line.count != 3) ||
-                (line.count == 3 && !eq(line.token(2), "rpm")) ||
-                !M::parseExactNumber(line.token(1), value)) {
+            M::VelocityRequest request;
+            size_t next = 1;
+            const bool bare = line.count == 2 || (line.count == 3 && eq(line.token(2), "rpm"));
+            if (bare ? !M::parseExactNumber(line.token(1), value)
+                     : line.count < 4 || !unitSpeed(line, next, axis.binding.configurationGeneration, request) ||
+                           next != line.count) {
                 reject(syntax);
                 return;
             }
-            const M::Status status = setSimpleSpeed(intent, rpm(value, axis), axis);
+            if (bare)
+                request = rpm(value, axis);
+            const M::Status status = setSimpleSpeed(intent, request, axis);
             if (!status) {
                 reject(status);
                 return;
@@ -580,7 +718,10 @@ void ProbeConsole::dispatchMotion(const ConsoleLine& line, uint64_t now) noexcep
                     status = makeSimplePosition(position.value, position.unit, position.relative,
                         axis.binding.configurationGeneration, position);
                     if (status)
-                        status = buildSimpleMove(intent, position, axis, !position.relative, request, profile);
+                        status = buildSimpleMove(intent, position, axis, !position.relative, request, profile,
+                                                 &ramp_);
+                    if (status && intent.accelerationKnown)
+                        rampField_ = 1;
                     if (status)
                         status = motion->requestMove(request, profile, now, cutoff);
                 }
@@ -590,47 +731,70 @@ void ProbeConsole::dispatchMotion(const ConsoleLine& line, uint64_t now) noexcep
                 } else {
                     M::MoveRequest request;
                     L::MoveProfile profile;
-                    if (parseMove(line, axis, intent, request, profile))
-                        status = motion->requestMove(request, profile, now, cutoff);
+                    uint8_t rampKind = 0;
+                    M::AccelerationRequest ramp;
+                    if (parseMove(line, axis, intent, request, profile, rampKind, ramp)) {
+                        status = moveRamp(rampKind, ramp, request.speed, axis, profile);
+                        if (status)
+                            status = motion->requestMove(request, profile, now, cutoff);
+                    }
                 }
             } else if (eq(name, "velocity")) {
                 M::VelocityRequest rate;
                 uint64_t duration = 0;
-                size_t next = 7;
+                size_t next = 5;
+                uint8_t rampKind = 0;
+                M::AccelerationRequest ramp;
                 rate.configurationGeneration = axis.binding.configurationGeneration;
-                if (line.count >= next && M::parseExactNumber(line.token(1), rate.value) &&
+                const bool shape = line.count >= 7 && M::parseExactNumber(line.token(1), rate.value) &&
                     rateUnit(line.token(2), rate.unit) && frame(line.token(3), rate.frame) &&
-                    positiveInteger(line.token(4), duration) && eq(line.token(5), "configured") &&
-                    (eq(line.token(6), "normal") || eq(line.token(6), "fast")) &&
+                    positiveInteger(line.token(4), duration) && rampClause(line, next, axis, rampKind, ramp) &&
+                    eq(line.token(next), "configured");
+                const char* kind = line.token(next + 1);
+                next += 2;
+                if (shape && (eq(kind, "normal") || eq(kind, "fast")) &&
                     rounding(line, next, rate, rate.unit.position)) {
                     M::FiniteVelocityRequest request;
                     status = makeFiniteVelocity(rate, duration, axis, request);
                     if (status && request.durationUs > uint64_t(INT64_MAX) - cutoff)
                         status = syntax;
+                    // Both ramps from one acceleration (6083 = 6084, the measured condition); a separate
+                    // deceleration is the library's refusal.
+                    L::VelocityProfile profile;
+                    if (status && rampKind) {
+                        status = L::prepareAccelerationRamp(ramp_, rampKind == 1 ? L::RampUse::VELOCITY_START
+                                                                                 : L::RampUse::VELOCITY_DECELERATION,
+                                                            ramp, rate, axis);
+                        profile.rampUpTimeMs = profile.rampDownTimeMs = ramp_.effectiveMs;
+                        if (status)
+                            rampField_ = 2;
+                    }
                     if (status) {
                         cutoff += request.durationUs;
-                        status = motion->requestVelocity(request,
-                                                          eq(line.token(6), "normal")
-                                                              ? L::StopKind::HALT
-                                                              : L::StopKind::QUICK_STOP,
-                                                          now, cutoff);
+                        const L::StopKind haltKind = eq(kind, "normal") ? L::StopKind::HALT : L::StopKind::QUICK_STOP;
+                        status = rampKind ? motion->requestVelocity(request, profile, haltKind, now, cutoff)
+                                          : motion->requestVelocity(request, haltKind, now, cutoff);
                     }
                 }
             } else if (eq(name, "home")) {
                 uint64_t method = 0, ramp = 0;
-                M::Rational search, creep;
-                if (line.count == 6 && positiveInteger(line.token(1), method) &&
+                size_t next = 2;
+                uint8_t rampKind = 0;
+                M::AccelerationRequest acceleration;
+                L::HomeRequest request;
+                const bool speeds = positiveInteger(line.token(1), method) &&
                     (method == 17 || method == 18 || method == 24 || method == 29) &&
-                    M::parseExactNumber(line.token(2), search) &&
-                    M::parseExactNumber(line.token(3), creep) &&
-                    positiveInteger(line.token(4), ramp) && ramp <= 2000 &&
-                    eq(line.token(5), "zero")) {
-                    L::HomeRequest request;
+                    speedClause(line, next, axis, request.searchSpeed) &&
+                    speedClause(line, next, axis, request.creepSpeed) &&
+                    rampClause(line, next, axis, rampKind, acceleration);
+                if (speeds && !rampKind && !positiveInteger(line.token(next++), ramp))
+                    ramp = UINT64_MAX;
+                if (speeds && ramp <= 2000 && eq(line.token(next), "zero") && next + 1 == line.count) {
                     request.method = static_cast<L::HomingMethod>(method);
-                    request.searchSpeed = rpm(search, axis);
-                    request.creepSpeed = rpm(creep, axis);
                     request.rampTimeMs = static_cast<uint32_t>(ramp);
-                    status = motion->requestHome(request, now, cutoff);
+                    status = rampKind ? L::prepareAccelerationRamp(ramp_, L::RampUse::HOMING, acceleration,
+                                                                   request.searchSpeed, axis)
+                                      : motion->requestHome(request, now, cutoff);
                 }
             } else if (stop) {
                 if ((explicitStop ? line.count == 2 || line.count == 3 : line.count == 2) &&
@@ -701,6 +865,9 @@ void ProbeConsole::dispatchMotion(const ConsoleLine& line, uint64_t now) noexcep
             }
             std::snprintf(op->command, sizeof op->command, "%s", name);
             motionAccepted(*op);
+            if (rampField_)
+                rampAccepted(*op);
+            rampField_ = 0;
             return;
         }
     }
@@ -736,6 +903,58 @@ void ProbeConsole::motionAccepted(Operation& op) noexcept {
         stats_.outputDropped != UINT32_MAX)
         ++stats_.outputDropped;
 }
+// Off dispatchMotion's chain: the conversion and the record each use their own frame.
+#if defined(__GNUC__) || defined(__clang__)
+__attribute__((noinline))
+#elif defined(_MSC_VER)
+__declspec(noinline)
+#endif
+M::Status ProbeConsole::moveRamp(uint8_t kind, const M::AccelerationRequest& acceleration,
+                                 const M::VelocityRequest& speed, const M::AxisConfig& axis,
+                                 L::MoveProfile& profile) noexcept {
+    if (!kind)
+        return M::Ok();
+    const M::Status status = L::prepareAccelerationRamp(
+        ramp_, kind == 1 ? L::RampUse::MOVE_START : L::RampUse::MOVE_DECELERATION, acceleration, speed, axis);
+    if (!status)
+        return status;
+    profile.rampUpTimeMs = ramp_.effectiveMs; // 6083 only; 6084 stays the intent's milliseconds.
+    rampField_ = 1;
+    return M::Ok();
+}
+#if defined(__GNUC__) || defined(__clang__)
+__attribute__((noinline))
+#elif defined(_MSC_VER)
+__declspec(noinline)
+#endif
+void ProbeConsole::rampAccepted(const Operation& op) noexcept {
+    const M::PreparedRampTime& r = ramp_;
+    char unit[16];
+    accelerationName(r.requested.unit, unit);
+    const int64_t error = r.accelerationError.numerator;
+    const unsigned long long errorMagnitude =
+        error < 0 ? static_cast<unsigned long long>(-(error + 1)) + 1 : static_cast<unsigned long long>(error);
+    ConsoleText text;
+    text.start(op.json, op.request, "ramp_value", op.command);
+    text.add(op.json ? ",\"operation_id\":%lu,\"field\":\"%s\",\"unit\":\"ms\",\"native\":\"%lu\","
+                       "\"exact\":[\"%lld\",\"%llu\"],\"error\":[\"%llu\",\"%llu\",%s],\"speed_rpm\":\"%lld\","
+                       "\"acceleration_unit\":\"%s\",\"frame\":\"%s\",\"effective\":[\"%lld\",\"%llu\"],"
+                       "\"acceleration_error\":[\"%llu\",\"%llu\",%s]"
+                     : "operation=%lu %s native=%lu ms exact=%lld/%llu error=%llu/%llu negative=%s rpm=%lld "
+                       "acceleration-unit=%s frame=%s effective=%lld/%llu acceleration-error=%llu/%llu negative=%s",
+             static_cast<unsigned long>(op.id), rampField_ == 2 ? "ramps" : "ramp_up",
+             static_cast<unsigned long>(r.effectiveMs), static_cast<long long>(r.exactMs.numerator),
+             static_cast<unsigned long long>(r.exactMs.denominator),
+             static_cast<unsigned long long>(r.quantization.errorNumerator),
+             static_cast<unsigned long long>(r.quantization.errorDenominator), truth(r.quantization.errorNegative),
+             static_cast<long long>(r.speedNative), unit, frameName(r.requested.frame),
+             static_cast<long long>(r.effectiveAcceleration.numerator),
+             static_cast<unsigned long long>(r.effectiveAcceleration.denominator), errorMagnitude,
+             static_cast<unsigned long long>(r.accelerationError.denominator), truth(error < 0));
+    text.end(op.json);
+    if ((!text.valid || !enqueue(text.bytes, false, op.request)) && stats_.outputDropped != UINT32_MAX)
+        ++stats_.outputDropped;
+}
 void ProbeConsole::motionIntentReply(const ConsoleLine& line, bool inspect) noexcept {
     SimpleMoveIntent& intent = motionIntent();
     const char* name = line.token(0);
@@ -751,18 +970,51 @@ void ProbeConsole::motionIntentReply(const ConsoleLine& line, bool inspect) noex
         text.add(line.json ? ",\"value\":" : "value=");
         if (eq(name, "motion"))
             text.string(intent.setup == L::MoveSetup::WRITE_ALL ? "write" : "verify");
-        else if (speed && intent.speedKnown)
+        const bool acceleration = up && intent.accelerationKnown;
+        char unit[16] = "ms";
+        if (speed && intent.speedKnown)
             text.add("[\"%lld\",\"%llu\"]", static_cast<long long>(intent.speed.value.numerator),
                      static_cast<unsigned long long>(intent.speed.value.denominator));
+        else if (acceleration)
+            text.add("[\"%lld\",\"%llu\"]", static_cast<long long>(intent.acceleration.value.numerator),
+                     static_cast<unsigned long long>(intent.acceleration.value.denominator));
         else if ((up && intent.rampUpKnown) || (down && intent.rampDownKnown))
             text.add("\"%lu\"",
                      static_cast<unsigned long>(up ? intent.rampUpMs : intent.rampDownMs));
         else
             text.add("null");
+        if (speed && intent.speedKnown) {
+            const M::VelocityUnit& u = intent.speed.unit;
+            const char* names[] = {"steps", "fullsteps", "counts", "turn", "deg", "rad", "mm"};
+            const unsigned n = static_cast<unsigned>(u.position);
+            if (u.position == M::PositionUnit::TURNS && u.time == M::TimeUnit::MINUTE)
+                std::snprintf(unit, sizeof unit, "rpm");
+            else
+                std::snprintf(unit, sizeof unit, "%s/%s", n < 7 ? names[n] : "unknown",
+                              u.time == M::TimeUnit::MINUTE ? "min" : "s");
+        } else if (speed)
+            std::snprintf(unit, sizeof unit, "rpm");
+        else if (acceleration)
+            accelerationName(intent.acceleration.unit, unit);
         if (speed || up || down)
-            text.add(line.json ? ",\"unit\":\"%s\"" : " %s", speed ? "rpm" : "ms");
-    } else
+            text.add(line.json ? ",\"unit\":\"%s\"" : " %s", unit);
+        if ((speed && intent.speedKnown) || acceleration)
+            text.add(line.json ? ",\"frame\":\"%s\"" : " %s",
+                     frameName(speed ? intent.speed.frame : intent.acceleration.frame));
+    } else {
         text.add(line.json ? ",\"device_traffic\":false" : "host intent only");
+        // The whole rpm a set speed would write, as prepareVelocityTarget gives it (an exact preview).
+        ProbeMotion* motion = selectedMotion();
+        M::PreparedVelocityTarget preview;
+        if (speed && intent.speedKnown && motion && M::prepareVelocityTarget(intent.speed, motion->axisConfig(), preview) &&
+            preview.exactArithmetic)
+            text.add(line.json ? ",\"rpm\":\"%lld\",\"rpm_error\":[\"%llu\",\"%llu\",%s]"
+                               : " rpm=%lld error=%llu/%llu negative=%s",
+                     static_cast<long long>(preview.effectiveNative),
+                     static_cast<unsigned long long>(preview.quantization.errorNumerator),
+                     static_cast<unsigned long long>(preview.quantization.errorDenominator),
+                     truth(preview.quantization.errorNegative));
+    }
     text.end(line.json);
     if ((!text.valid || !enqueue(text.bytes, false, line.id)) && stats_.outputDropped != UINT32_MAX)
         ++stats_.outputDropped;

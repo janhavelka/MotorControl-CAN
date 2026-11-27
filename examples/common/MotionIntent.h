@@ -16,6 +16,11 @@ struct SimpleMoveIntent {
     bool rampDownKnown = false;             ///< Explicit deceleration time has been supplied.
     uint32_t rampUpMs = 0;   ///< Native 6083 milliseconds, not physical acceleration.
     uint32_t rampDownMs = 0; ///< Native 6084 milliseconds, not physical deceleration.
+    /** An acceleration form replaces rampUpMs: each move converts it for its own speed with
+     * LICHUAN_C::prepareAccelerationRamp (MOVE_START), so 6083 follows the measured start law. Setting
+     * 6083 in milliseconds again clears it. */
+    bool accelerationKnown = false;
+    MotorControlCAN::AccelerationRequest acceleration; ///< Original exact magnitude, unit and frame.
     MotorControlCAN::LICHUAN_C::MoveSetup setup =
         MotorControlCAN::LICHUAN_C::MoveSetup::WRITE_ALL; ///< Explicitly inspectable setup policy.
 };
@@ -44,6 +49,14 @@ MotorControlCAN::Status setSimpleSpeed(SimpleMoveIntent& intent,
  * @param[in] milliseconds Exact time. @return Status; intent is unchanged on failure. */
 MotorControlCAN::Status setSimpleRamp(SimpleMoveIntent& intent, bool acceleration,
                                       const MotorControlCAN::Rational& milliseconds) noexcept;
+/** Retain an exact acceleration for 6083 in place of milliseconds. Only its shape is checked here
+ * (positive value, valid unit, frame, rounding and allowance, current epoch); the conversion and every
+ * law and range refusal happen per move in prepareAccelerationRamp, with that move's speed.
+ * @param[in,out] intent Host choices. @param[in] acceleration Exact request with current generation.
+ * @param[in] axis Current configuration. @return Status; intent is unchanged on failure. */
+MotorControlCAN::Status setSimpleAcceleration(SimpleMoveIntent& intent,
+                                              const MotorControlCAN::AccelerationRequest& acceleration,
+                                              const MotorControlCAN::AxisConfig& axis) noexcept;
 /** Set an existing native policy. REUSE_STORED verifies prior values and writes differences;
  * it does not mean an unchecked stored-only trajectory.
  * @param[in,out] intent Host choices. @param[in] setup Existing typed policy.
@@ -63,13 +76,16 @@ MotorControlCAN::Status makeCommandScale(const MotorControlCAN::Rational& stepsP
  * @param[in] simpleAbsolute True requires an unwrapped absolute request and explicit host origin;
  * false requires an unwrapped relative request with its supported basis. No basis fallback occurs.
  * @param[out] request Original exact position and speed; unchanged on failure.
- * @param[out] profile Native ramp/setup choices; unchanged on failure.
+ * @param[out] profile Native ramp/setup choices; unchanged on failure. With an acceleration form,
+ * rampUpTimeMs is prepareAccelerationRamp's effectiveMs for this speed.
+ * @param[out] ramp Optional conversion evidence, written only when the acceleration form was used.
  * @return Local preflight only; no work is reserved or transmitted. */
 MotorControlCAN::Status buildSimpleMove(const SimpleMoveIntent& intent,
                                         const MotorControlCAN::PositionRequest& position,
                                         const MotorControlCAN::AxisConfig& axis,
                                         bool simpleAbsolute, MotorControlCAN::MoveRequest& request,
-                                        MotorControlCAN::LICHUAN_C::MoveProfile& profile) noexcept;
+                                        MotorControlCAN::LICHUAN_C::MoveProfile& profile,
+                                        MotorControlCAN::PreparedRampTime* ramp = nullptr) noexcept;
 /** Validate finite velocity and retain the exact original request. The native lifecycle performs
  * its own single final preparation; a preview is never fed back as a new rounded request.
  * @param[in] velocity Exact signed rate; native frame means the configured native-rate dimension.
