@@ -1,6 +1,7 @@
 # Prompt 60 report: user units for speed and acceleration
 
-State: In progress; stages (a), (b) and (c) complete, stage (d) acceptance next. Run by the unattended Claude loop of 2026-11-23
+State: Partial. The software scope is delivered and checked (stages (a) to (d)); the bench exit step and the
+unmeasured ramp cases remain, listed under "Remaining" below. Run by the unattended Claude loop of 2026-11-23
 ([COMMON "Owner absence", Schedule](../prompts/COMMON.md#owner-absence-20-november-to-about-4-december-2026)).
 
 ## Starting point
@@ -185,3 +186,45 @@ Lead dispositions (all fixed in `05564001` unless stated):
   precedence as implemented.
 - Backlog, not fixed: refusing a move shorter than its ramps' distance in acceleration form (documented as inference
   instead).
+
+## Stage (d) acceptance (2026-11-27)
+
+The final code is `05564001`; `e8857479` and later commits change only this report, the backlog and `PROGRESS.md`.
+Checks:
+
+- On a clean worktree of `05564001`: `verify.py --mode full` (configure, C++11 gcc build, registration, 181 of 181
+  tests, package), `test/package_test.py`, `check_promptset.py --check-git-ref HEAD`, `check_lichuan_operations.py`,
+  `check_lichuan_ledger.py`, `generate_lichuan_objects.py --check`, `s2_bench_test.py`; strict Doxygen in a worktree
+  outside `.build` (39 headers, 4916 members). The implementer ran `check_firmware.py --target all` and
+  `check_stack.py --strict` on the fix round.
+- CI `verify.yml` run 45981612252 succeeded on `e8857479` in every job (Windows quick, full gcc and clang with ASan
+  and UBSan, ESP-IDF firmware with the strict stack check and the isolated component, Arduino). Earlier: 45956602049
+  (`5ba893de`), 45959858841 (`a593882d`), 45964998121 failed on `98d12665` in the package step (packaged documents
+  linked unpackaged guides), fixed by `1d1e2b6d` with CI 45967128160.
+
+Acceptance against "Verify and exit":
+
+| Item | Evidence |
+| --- | --- |
+| Conversion tables against hand-computed values | `ramp_time_test` and `acceleration_ramp_test` (frames, gear and lead, rpm/s, turns/s^2, mm/s^2, deg/s^2, every rounding rule, ties); the stage (c) reviewer's 13 independent cases and a 300k-case fuzz against an exact-fraction model |
+| Boundary refusals: ramp 0, ramp over 2000 ms, speed over the record limit, unrepresentable EXACT | `ramp_time_test` (zero and negative acceleration, 0 and 2001 ms after rounding, EXACT with a fractional time, overflow, radians); `acceleration_ramp_test` (each box edge, 99/1001/199/2001 ms, speeds outside the boxes, refused uses, `recordsNeverWidened`: a bound record's speed and ramp limits still refuse after conversion; `RAMP_SOURCE`, `RAMP_CHANGE`) |
+| Reported quantization errors | `PreparedRampTime::quantization` and `accelerationError` checked in both test files; the console's `ramp_value` record (`motion_console_test`) |
+| Identical native traffic for requests that map to existing native values | `motion_console_test` `accelerationFormsGiveTheNativeTraffic` (the unit and millisecond forms send the same frames) and `accelerationFormRefusalsBeforeTraffic` (no frame on any refusal) |
+| Native, package, firmware, stack and documentation gates; CI on the final commit | Above |
+| Bench: one move and one velocity run in user units compared with the drive's reports | NOT RUN (Remaining) |
+| Units, axis, position and velocity guides, CLI contract, coverage, CHANGELOG, Doxygen | b5 and the stage (c) round; [speed_units.md](../speed_units.md) rewritten in stage (c) |
+| A stronger reviewer checks the arithmetic and rounding rules | Stage (c), Fable high, with an independent re-fit of the ramp law |
+
+## Remaining
+
+- Bench exit step, NOT RUN in this host-only prompt: one move (for example 60 rpm from rest, `accel` in mm/s^2 or
+  rpm/s giving a ramp inside 100 to 1000 ms) and one velocity run (for example 120 rpm, ramp inside 200 to 2000 ms)
+  commanded in user units, comparing the drive's `6083`/`6084` readback, `606C` and the `6064` trajectory with the
+  reported effective values. Nothing persistent or communication-changing, so COMMON's owner-absence rules allow it
+  unattended; prompt 66 (hardware qualification) owns it.
+- Unmeasured, kept in native milliseconds until measured: position deceleration (`6084`) and arrival, velocity
+  deceleration other than equal to the acceleration, speed changes (measured on 7 runs only, 6 to 60 rpm), homing
+  ramps (`609A`, no evidence). The measurement list is in "Ramp law evidence" above; prompt 66 or a later velocity
+  prompt runs it.
+- Backlog S23: moves too short to reach their speed.
+- RAM of the console additions (about 330 bytes per console) is a host estimate; prompt 76 measures storage placement.
