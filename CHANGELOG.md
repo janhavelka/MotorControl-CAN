@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### User-unit guides (prompt 60, slice b5, 2026-11-27)
+
+- Documentation only: `docs/axis_contract.md` and `docs/units_status.md` describe `AccelerationRequest` and
+  `prepareRampTime` (rounding, allowance, range, refusals) and the names against MotorControl-RS; the position,
+  velocity and homing guides give the user-unit forms, the measured law per mode (moves 2..300 rpm and
+  100..2000 ms through 6083 only; velocity 6..4500 rpm and 200..2000 ms for both ramps), what stays native and
+  why, and the uncompensated 0.99201 rate and ramp stretch, linking the ramp analysis and `docs/speed_units.md`.
+  `docs/coverage.md` gains the prompt 60 rows. Prompt 73's planning text and the ledger's Q26 evidence and
+  `6083`/`6084` value policies point at the measured law (`lichuan_generated.md` regenerated).
+
 ### Console speeds and ramps in user units (prompt 60, slice b4, 2026-11-27)
 
 - **Added (console):** `speed VALUE RATE FRAME [round POLICY ERROR]` (its reply previews the whole rpm),

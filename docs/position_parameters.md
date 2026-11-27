@@ -46,6 +46,34 @@ native target without a witness says nothing about displacement or standstill;
 a zero relative displacement is also only arithmetic. Numeric zero speed and
 ramp times follow the source table but do not qualify their trajectory effects.
 
+## Speed and acceleration in user units
+
+A move's speed in any unit the axis scales support goes through `prepareVelocityTarget`, as
+the move itself prepares it; `6081` receives the whole rpm. A ramp-up given as an
+acceleration goes through `LICHUAN_C::prepareAccelerationRamp` with `RampUse::MOVE_START`.
+It prepares the speed from the move's own request and axis and refuses the acceleration form
+unless that whole rpm is inside `MOVE_RAMP_LAW_MINIMUM_RPM..MOVE_RAMP_LAW_MAXIMUM_RPM` (2..300).
+It then converts with `prepareRampTime` ([axis contract](axis_contract.md)) and admits only
+rounded times inside `MOVE_RAMP_LAW_MINIMUM_MS..RAMP_LAW_MAXIMUM_MS` (100..2000 ms). Write the
+result's `effectiveMs` to `MoveProfile::rampUpTimeMs`; `rampDownTimeMs` stays native
+milliseconds. The move preparation, the identity policy and a bound record (`checkRecordMove`)
+then check the profile exactly as a native one, so a unit request widens no limit. For
+example, with a 5 mm lead 25 mm/s is 300 rpm, and 250 mm/s^2 (50 turns/s^2, 3000 rpm/s) is
+100 ms.
+
+Basis, MEASURED on drive reports of both CL86-C specimens, one firmware, identity
+`measuredIdentity()` ([ramp analysis](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/bench/20261127-p60-ramp-analysis/README.md)): a move from rest
+reaches its commanded speed in the `6083` time (144 runs, 2..300 rpm, `6083` 100..2000 ms).
+In 66 runs with unequal values `6083` set it, not `6084`. Native milliseconds only, and why:
+`6084` (deceleration is unresolved: three HALT runs, and arrivals bracketed only by polls about
+1 s apart); replacements (`prepareMoveReplacement`, `RampUse::MOVE_REPLACEMENT`; changes were
+measured on seven velocity-mode runs only); moves above 300 rpm (velocity-mode evidence is not
+position-mode evidence). The reported count rate, 0.99201 x floor(rpm x `2201` / 60), and a
+ramp about 1 % longer than written are observations, never compensated
+([speed units](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/speed_units.md)). The console forms are
+`move ... speed VALUE RATE FRAME accel VALUE ACCEL FRAME configured` and
+`accel VALUE ACCEL FRAME` ([CLI contract](cli_contract.md)).
+
 ## Snapshots and operation admission
 
 This snapshot is requested intent, not a verified settings cache. A later move

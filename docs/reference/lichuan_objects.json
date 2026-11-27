@@ -18307,7 +18307,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "U32; documented 0..2000 ms; zero behavior unqualified. EDS default100 not initialization.",
+            "value_policy": "U32; documented 0..2000 ms; zero behavior unqualified. EDS default100 not initialization. Measured 2026-11-27 (docs/bench/20261127-p60-ramp-analysis, drive reports, both CL86-C specimens, one firmware): from rest, 6083 is the time to the commanded speed in mode 1 (144 starts, 2..300 rpm, 100..2000 ms; 6084 does not set it) and in mode 3 with 6083=6084 (314 starts, 6..4500 rpm, 200..2000 ms). Changes, deceleration and zero remain unqualified.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -18440,7 +18440,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "U32; documented 0..2000 ms; zero behavior unqualified. EDS default100 not initialization.",
+            "value_policy": "U32; documented 0..2000 ms; zero behavior unqualified. EDS default100 not initialization. Measured 2026-11-27 (docs/bench/20261127-p60-ramp-analysis): a mode1 start from rest does not follow 6084; three HALT runs fit a ramp-down lasting 6084, too few to qualify deceleration; the quick stop does not follow it (170 runs).",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -23823,7 +23823,7 @@
       {
         "id": "Q26",
         "feature": "Ramp and stop behavior during a change",
-        "required_evidence": "EN86/ZH86 p12-13 document6083/6084 U32 milliseconds0..2000, not a physical slope or duration formula during changes. Compare finite different-size positive rate steps and bare ramp changes; independently measure stop after changed6084. Zero remains gatedQ11. Do not infer convergence or stopping distance from a download acknowledgement. Initial node2 trials52020/52022 compare bare500/2000ms changes with reported position/velocity; no current-curve effect observed. Trial52034 adds an immediate positive speed step and moving quick stop;52013 supplies a mode3 positive step. Sparse sequential reports do not establish physical ramp/stop law, arbitrary step-size behavior or an independent stop-distance bound. See docs/reports/prompt_52_measurements.md; finished-route qualification remains54.",
+        "required_evidence": "EN86/ZH86 p12-13 document6083/6084 U32 milliseconds0..2000, not a physical slope or duration formula during changes. Compare finite different-size positive rate steps and bare ramp changes; independently measure stop after changed6084. Zero remains gatedQ11. Do not infer convergence or stopping distance from a download acknowledgement. Initial node2 trials52020/52022 compare bare500/2000ms changes with reported position/velocity; no current-curve effect observed. Trial52034 adds an immediate positive speed step and moving quick stop;52013 supplies a mode3 positive step. Sparse sequential reports do not establish physical ramp/stop law, arbitrary step-size behavior or an independent stop-distance bound. See docs/reports/prompt_52_measurements.md; finished-route qualification remains54. Prompt 60 (2026-11-27, docs/bench/20261127-p60-ramp-analysis): seven retained mode3 changes between two speeds (30 to 60 and 60 to 30 rpm at 500 ms, 6 to 60 rpm at 200 ms, 6083=6084, both specimens) each took the whole ramp time after a 16 to 19 ms reaction; too few for a law, so the acceleration form refuses changes and this gate stays open.",
         "owner_prompts": [
           52,
           54

@@ -178,7 +178,47 @@ No position origin, witness or position limits are consumed. Integer output is
 wide signed arithmetic, including values beyond ESS's 16-bit RPM fields. Binary32
 uses the same explicit quantization policy. A profile later checks its wire width;
 zero here is arithmetic and does not issue a stop. Dimensional acceleration and
-millisecond ramp parameters remain separate quantities.
+millisecond ramp parameters remain separate quantities; `prepareRampTime` below is the
+one checked conversion between them.
+
+## Acceleration and ramp time
+
+`AccelerationRequest` carries an exact positive magnitude (`value`), an `AccelerationUnit`
+with two time denominators (rpm/s is `TURNS`, `MINUTE`, `SECOND`), a frame, the
+configuration epoch, its own `Rounding` for the millisecond result and
+`maximumAccelerationError`, an inclusive allowance in the request's own unit. The frame
+rules are those of `VelocityRequest`: `NATIVE` is the native-rate dimension with
+`velocityTime` equal to `nativeVelocityTime`; `MOTOR` and `LOAD` convert with the axis
+scales. Direction belongs to the speed or position request; the magnitude has no sign.
+Radians need pi and are refused.
+
+`prepareRampTime(request, speed, axis, minimumMs, maximumMs, output)` computes
+T [ms] = 1000 x |`speed.effectiveNative`| / a, with a converted into native-rate units per
+second. For a motor-rpm axis that is T = rpm x 1000 / (60 x a [motor turns/s^2]). The speed is
+the whole value already prepared by `prepareVelocityTarget` under the same binding, rate basis
+and time, not the original request. The arithmetic is exact `Rational` with cancelled checked
+products and no floating point. The result holds `exactMs`, the rounded `effectiveMs`, the
+millisecond `quantization` (effective minus exact), `effectiveAcceleration` (|speed| over
+`effectiveMs`, in the request's unit) and `accelerationError` (effective minus requested).
+Refused, never clamped, with outputs unchanged: a stale request or speed, a zero, negative or
+malformed acceleration, a binary32 or zero speed, an invalid range (`minimumMs` must be at
+least 1), radians, storage overflow, an EXACT fraction, a rounded time outside
+`minimumMs..maximumMs` (`LIMIT`) and an acceleration error above the allowance
+(`QUANTIZATION_ERROR`). The millisecond rounding has no allowance of its own: its error is
+below 1 ms, and the allowance applies to the acceleration.
+
+The function claims no drive law: it is the time of a change between rest and the prepared
+speed, and a profile states where its native ramp object means that time and which range
+applies. With a 5 mm lead at 600 rpm, 500 mm/s^2 is 100 ms; 300 mm/s^2 is 500/3 ms, NEAREST
+167 ms with an effective 50000/167 mm/s^2 (error -100/167); 10 mm/s^2 is 5000 ms and outside
+a 1..2000 ms range. The Lichuan profile gates it in `LICHUAN_C::prepareAccelerationRamp`
+([position guide](position_parameters.md), [velocity guide](velocity.md)).
+
+Names follow MotorControl-RS: `acceleration` and `deceleration` are physical magnitudes in an
+`AccelerationUnit` (RS `docs/axis_contract.md` "Velocity, ramps and effort",
+`VelocityOperation.h` `VelocityRequest`). The common layer uses one `AccelerationRequest` type
+for either; the Lichuan native fields keep `rampUpTimeMs` and `rampDownTimeMs`, and RS's ESS
+words `accelerationTime`/`decelerationTime` are not common names.
 
 ## An offline example
 
@@ -225,6 +265,7 @@ Public motion sequence vocabulary and ownership remain in the
 | Allowances | Binary64 values | Exact `Rational` values |
 | Unknown supplied witness | `:505` drops it when no limit needs it | Always checked, never ignored |
 | Relative witness | `:510` needs one only with soft limits | Always needed |
+| Acceleration | `VelocityRequest` carries `double acceleration, deceleration` with `AccelerationUnit`; the ESS profile refuses `VelocityRamp::ACCELERATION` (`src/profiles/ess_rs/Velocity.cpp:112`) | Exact `AccelerationRequest`; `prepareRampTime` converts a magnitude into the time of a change from rest, and a profile admits it only where its law is measured |
 
 The first two are RS behaviors this library does not copy; they are recorded here
 and RS is unchanged.

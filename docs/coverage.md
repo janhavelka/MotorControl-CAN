@@ -349,6 +349,19 @@ and no bench step of this prompt ran: none was needed, the records come from ear
 | Reviewed forward velocity record | [`lichuan_c_velocity_forward.record`](records/lichuan_c_velocity_forward.record); `reviewed_records_test` checks it decodes and that it opens nothing | 102 attended runs; `2201=1000` INFERRED, so the record is refused (`BASIS`) until a run reads `2201`; quick stop narrowed to 6..40 rpm, HALT to 6..30 rpm, start to `C050/0015` (S20 and S21) |
 | Absolute position and homing records | None | Three absolute library moves; homing: 11 admission records, all refused before any write. No record |
 
+## Prompt 60 user units
+
+Host-tested means the native tests named here pass against fakes. The ramp law the Lichuan
+gate uses is MEASURED from retained drive reports
+([ramp analysis](bench/20261127-p60-ramp-analysis/README.md)); no new bench step ran, and the
+prompt's bench exit step is decided in stage (d).
+
+| Feature | Implementation and host checks | Device evidence |
+| --- | --- | --- |
+| Acceleration request and ramp time | `AccelerationRequest`, `PreparedRampTime`, `prepareRampTime` (`Axis.h`); `ramp_time_test`: hand-computed tables for mm/s^2, rpm/s, turns/s^2, deg/s^2, gears, polarity, every rounding, ties to even, the allowance, inclusive range edges, storage edges and every refusal | None needed: pure arithmetic |
+| Lichuan start-from-rest ramp | `prepareAccelerationRamp`, `RampUse`, `RampError`, the law bounds (`Position.h`); `acceleration_ramp_test`: both modes, every refused use, the rpm and millisecond ranges, the same SDO traffic as native milliseconds on the move and velocity rigs, records and the evidence's range never widened | MEASURED: 144 position and 314 velocity starts from rest, both specimens, one firmware; deceleration (three HALT runs), changes (seven runs) and homing (none) stay native |
+| Console unit forms | `speed VALUE RATE FRAME`, `accel VALUE ACCEL FRAME`, `move ... speed ... accel ... configured`, `velocity ... accel ... configured`, home speeds; `decel` and homing ramps in acceleration form refused; the `ramp_value` record; `ProbeMotion::requestVelocity` with a profile, `setSimpleAcceleration`; `motion_console_test`, `motion_change_console_test`, `console_protocol_test`, `s2_console_test`, and `repository_test`'s rule that the console calls no conversion of its own; the firmware builds | Host only; the bench routes stay native |
+
 ## Prompt 51 host SYNC scope
 
 The finite portable codec/scheduler, independent owner admission/retirement,

@@ -67,6 +67,14 @@ the sign. The public-code [SRT homing example](reference/public_code/srt/SRT_Ope
 at lines 146–152 writes the wrong two-byte widths and a 5000 ms ramp; it is
 not an alternate supported sequence. `6040` itself remains two bytes.
 
+Search and creep speeds may be given in any unit the axis scales support: each goes through
+`prepareVelocityTarget` and must come out positive whole motor rpm, as above (console
+`home METHOD speed VALUE RATE FRAME speed VALUE RATE FRAME RAMP_MS zero`,
+[CLI contract](cli_contract.md)). `609A` stays native milliseconds: the acceleration form is
+refused (`LICHUAN_C::prepareAccelerationRamp`, `RampUse::HOMING`) because no retained record
+writes `609A`, so no homing ramp law is measured
+([ramp analysis](bench/20261127-p60-ramp-analysis/README.md), [speed units](speed_units.md)).
+
 Enabling in mode 6 is an explicit, separately gated action. Homing preparation
 never enables implicitly. It requires fresh enabled mode-6 state and the latest
 acknowledged `6040=000F`. Admission also requires stationary reports from the

@@ -55,9 +55,10 @@ Facts (code at the time of writing; recheck before changing):
   enable-operation bits (prompt 31; a CiA402 inference, not a measurement). A stop waits for in-flight work on its
   channel to settle and never cancels it (`AxisSession`).
 - Native moves may name command increments with no declared scale, and an absolute target is not a displacement
-  without a current position (`conversionConfig` and `preparePosition` in `src/Axis.cpp`). The ramp times' meaning,
-  rest to the commanded speed, is a documented figure fitted on four runs and still open as Q11
-  ([speed units](../speed_units.md)).
+  without a current position (`conversionConfig` and `preparePosition` in `src/Axis.cpp`). The ramp times' meaning for
+  a start from rest is measured since prompt 60 (moves 2 to 300 rpm through `6083`, velocity 6 to 4500 rpm with
+  `6083` = `6084`; [ramp analysis](../bench/20261127-p60-ramp-analysis/README.md)); deceleration, changes between
+  two speeds and the homing ramp stay open as Q11 ([speed units](../speed_units.md)).
 
 ### Design proposal
 

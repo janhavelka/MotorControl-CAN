@@ -78,7 +78,13 @@ configuration. `ASSUMED` is usable only because the caller supplied that fact.
 Time units are exact seconds, minutes and milliseconds. Acceleration has two
 separate time denominators: `60 turns/minute/second` and
 `3600 turns/minute/minute` both equal `1 turn/second/second`.
-No Lichuan millisecond ramp duration becomes dimensional acceleration.
+A native millisecond ramp never becomes a dimensional acceleration. The one checked
+conversion goes the other way: `prepareRampTime` ([axis API](axis_contract.md)) turns an
+exact acceleration magnitude into the time a change between rest and an already prepared
+speed takes, in whole milliseconds with its own rounding, an allowance on the resulting
+acceleration error and a caller-supplied range. It is arithmetic only; a profile decides
+where its native ramp means that time (for the Lichuan profile, a start from rest inside
+the measured law, `LICHUAN_C::prepareAccelerationRamp`).
 
 ## Quantization and approximation
 
