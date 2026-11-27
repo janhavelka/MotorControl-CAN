@@ -3,7 +3,8 @@
 Usage (from the repository root): python -I ramp.py ROWS_JSON RAMP_JSON
 
 Segments start at a controlword or 60FF write:
-  pstart  position start: bit 4 rises, not in mode 3, 607A known;
+  pstart  position start: bit 4 rises, not in mode 3, 607A known; V is 6081 signed by the
+          direction of the displacement, so reverse moves count;
   vstart  velocity start: mode 3, word 000F (from 0007), 60FF nonzero;
   vchg    a 60FF write while running in mode 3;
   halt, quick, disable, disvolt: the stop words (bit 8; 000B-type quick stop; 0006/0007; bit 1 clear).
@@ -104,10 +105,15 @@ def analyse(row, out):
             if not Vc:
                 line = None
                 continue
+            x0 = pre[-1][1] if pre else None
             if sg[0] == 'pstart' and sg[5] is not None:
                 rec['target'] = sg[5]
+                # 6081 is an unsigned speed; the direction is the displacement's: 607A itself for a
+                # relative edge (bit 6), the target minus the start position for an absolute one.
+                delta = sg[5] if sg[6] & 0x40 else (sg[5] - x0 if x0 is not None else 0)
+                if delta < 0:
+                    Vc = -Vc
             rec['V'] = Vc
-            x0 = pre[-1][1] if pre else None
             v0 = vnear(pre[-1][0]) if pre else None
             if sg[0] == 'vstart':
                 cws = [e for e in evs if e[0] == 'cw' and t0 - 0.6 < e[1] < t0 and (e[2]['cw'] & 0xF) in (0x6, 0x7)]

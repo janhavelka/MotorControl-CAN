@@ -204,7 +204,8 @@ Refused, never clamped, with outputs unchanged: a stale request or speed, a zero
 malformed acceleration, a binary32 or zero speed, an invalid range (`minimumMs` must be at
 least 1), radians, storage overflow, an EXACT fraction, a rounded time outside
 `minimumMs..maximumMs` (`LIMIT`) and an acceleration error above the allowance
-(`QUANTIZATION_ERROR`). The millisecond rounding has no allowance of its own: its error is
+(`QUANTIZATION_ERROR`), in that order: an exact time too large for fixed storage reports
+`ARITHMETIC_OVERFLOW` before it could be found outside the range. The millisecond rounding has no allowance of its own: its error is
 below 1 ms, and the allowance applies to the acceleration.
 
 The function claims no drive law: it is the time of a change between rest and the prepared

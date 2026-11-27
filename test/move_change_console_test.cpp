@@ -240,8 +240,55 @@ void fallingEdgeAbortSurvivesConsoleProjection() {
         CHECK(wordsFrom(r, first, 0x003f) == 0 && wordsFrom(r, first, 0x001f) == 0);
     }
 }
+// Prompt 60 stage (c): a move whose 6083 came from an acceleration, held or inline, admits no speed,
+// ramp or target change: the library's reason, no write. A retarget with its own acceleration
+// clause is refused whatever the original. replacementRoutesRetainBothResults keeps the millisecond
+// moves changing.
+void accelerationFormMoveAdmitsNoChange() {
+    scenario = "acceleration-form move admits no change";
+    const char* commands[] = {"@2 move speed 1 60 immediate", "@2 move ramps 1 300 400 immediate",
+                              "@2 move retarget 1 absolute 32000 steps native 30 configured"};
+    for (unsigned held = 0; held < 2; ++held)
+        for (const char* command : commands) {
+            ConsoleRig r;
+            r.line(held ? "@10 accel 300 rpm/s native" : "@10 accel 100 ms");
+            r.line("@11 decel 200 ms");
+            r.drain(12);
+            // 30 rpm at 300 rpm/s: 100 ms.
+            r.line(held ? "@1 move absolute 16000 steps native 30 configured"
+                        : "@1 move absolute 16000 steps native 30 accel 300 rpm/s native configured");
+            for (unsigned n = 0; n < 200 && !r.a.moveAction().latest.present; ++n)
+                r.tick();
+            CHECK(r.a.moveAction().acceptance.present && r.a.moveAction().phase == L::MovePhase::WAITING);
+            CHECK(r.a.moveAction().profile.rampSource.acceleration && r.a.moveAction().profile.rampUpTimeMs == 100);
+            const unsigned first = r.wire.sentCount;
+            const uint32_t helper = r.motion.normalResult().id;
+            const size_t begin = r.bytes.output.size();
+            r.line(command);
+            CHECK(r.motion.normalResult().id == helper && !r.a.moveAction().relation.originalOperationId);
+            r.drain(35);
+            const std::string reply = r.bytes.output.substr(begin);
+            contains(reply, "\"id\":2,\"command\":\"move\",\"ok\":false");
+            contains(reply, "a replacement would change it");
+            CHECK(downloadsFrom(r, first, 0x607a) == 0 && downloadsFrom(r, first, 0x6081) == 0 &&
+                  downloadsFrom(r, first, 0x6083) == 0 && downloadsFrom(r, first, 0x6084) == 0);
+            CHECK(wordsFrom(r, first, 0x003f) == 0 && wordsFrom(r, first, 0x001f) == 0);
+        }
+    ConsoleRig r;
+    r.start();
+    const unsigned first = r.wire.sentCount;
+    const size_t begin = r.bytes.output.size();
+    r.line("@2 move retarget 1 absolute 32000 steps native 30 accel 300 rpm/s native configured");
+    r.drain(35);
+    const std::string reply = r.bytes.output.substr(begin);
+    contains(reply, "\"id\":2,\"command\":\"move\",\"ok\":false");
+    contains(reply, "a move replacement in acceleration form is unmeasured");
+    CHECK(downloadsFrom(r, first, 0x607a) == 0 && downloadsFrom(r, first, 0x6081) == 0 &&
+          downloadsFrom(r, first, 0x6083) == 0 && downloadsFrom(r, first, 0x6084) == 0);
+}
 } // namespace
 int main() {
+    accelerationFormMoveAdmitsNoChange();
     replacementRoutesRetainBothResults();
     closedWrongAndUnmappedChangesRefuseBeforeWrites();
     fallingEdgeAbortSurvivesConsoleProjection();

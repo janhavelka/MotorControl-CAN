@@ -2,6 +2,38 @@
 
 ## Unreleased
 
+### Acceleration-form fix round (prompt 60, stage (c), 2026-11-27)
+
+- **Changed (API):** `LICHUAN_C::prepareAccelerationRamp` writes a `PreparedAccelerationRamp`: `time`, the former
+  `PreparedRampTime`, and `source`, a `RampSource` (`Settings.h`, beside `RampUse`, which moves there) that
+  `MoveProfile::rampSource` and `VelocityProfile::rampSource` carry. The boxes narrow to the bounding box of the
+  measured points: moves keep 2..300 rpm with 6083 100..`MOVE_RAMP_LAW_MAXIMUM_MS` 1000 ms (one run lies above),
+  velocity 6..3000 rpm (`VELOCITY_RAMP_LAW_MAXIMUM_RPM`; 4500 rpm completed once, 4000 rpm faulted FF05 with 200 ms
+  ramps) with 200..`VELOCITY_RAMP_LAW_MAXIMUM_MS` 2000 ms; `RAMP_LAW_MAXIMUM_MS` is removed. Doxygen and the guides
+  list the unmeasured corners. `buildSimpleMove`'s optional ramp output is the new type.
+- **Added (checks):** `prepareMoveAbsolute`, `prepareMoveRelative`, `prepareMoveAngle` and `prepareVelocity` accept an
+  acceleration-form source only for its own start (use, binding and configuration epoch, effective speed, the time
+  in each ramp it fills) and refuse anything else before any work (`MoveError::RAMP_SOURCE`,
+  `VelocityError::RAMP_SOURCE`). A move replacement or velocity change of a run whose ramps came from an
+  acceleration is refused before any frame (`MoveError::RAMP_CHANGE`, `VelocityError::RAMP_CHANGE`): a measured
+  change takes the whole ramp time, so the kept ramp would silently change the acceleration. Native-millisecond
+  runs are unaffected.
+- **Changed (console):** the home, retarget and deceleration acceleration forms are refused unconditionally, with the
+  library's reason, before any operation exists; `move speed`, `move ramps`, `move retarget` and `velocity change`
+  of an acceleration-form operation carry the library's refusal. The move help row's retarget takes `SPEED`;
+  `docs/cli_contract.md` lists the actual reasons.
+- **Analysis (`docs/bench/20261127-p60-ramp-analysis`):** `ramp.py` signs a position start's speed by its
+  displacement (comparing the signed `606C` with the unsigned `6081` dropped every reverse start), and `ana.py`
+  drops events a cached re-dump repeats (trial 52020 counted twice). The position set grows from 144 to 348 runs
+  (205 reverse); the law is 17.25 ms + 0.5042 x T. `runs.csv`, `summary.json` and the README are regenerated;
+  `docs/speed_units.md` (which now describes the conversion), the guides, the Q11 row and the re-audit note carry
+  the new figures.
+- `prepareRampTime`'s Doxygen states its refusal precedence as implemented (storage of the exact time before LIMIT).
+- Tests: the boxes' edges (1000/1001/2000/2001 ms for moves, 3000/3001/4500 rpm for velocity) and their ties to
+  even; the checked placement on the move and velocity rigs; refused changes and replacements in
+  `velocity_change_test`, `move_replacement_test`, `move_change_console_test` and `motion_change_console_test`;
+  a held acceleration stale after `stepsperturn`; a reverse run's and the text form's `ramp_value`.
+
 ### User-unit guides (prompt 60, slice b5, 2026-11-27)
 
 - Documentation only: `docs/axis_contract.md` and `docs/units_status.md` describe `AccelerationRequest` and

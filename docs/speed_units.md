@@ -21,7 +21,7 @@ The page-by-page audit behind this guide is the [units re-audit](reports/2026-11
 | Speed unit | Whole rpm, 0..3000, for position, velocity and homing speeds (documented, EN86 p11, p13); the motor-shaft basis is the profile's inferred interpretation, not an explicit scale formula in those pages |
 | Finer speed | No finer-speed object or unit is documented in the retained manuals/EDS; the implemented profile uses whole rpm |
 | Ramp unit | A time in milliseconds, 0..2000, not an acceleration (documented, EN86 p11, p13) |
-| Ramp meaning | Time from rest to the commanded speed: documented as a figure only (EN86 p11) and measured for starts from rest (144 position, 314 velocity runs); a change between two speeds also takes the whole ramp time (7 runs); deceleration and homing ramps remain unresolved |
+| Ramp meaning | Time from rest to the commanded speed: documented as a figure only (EN86 p11) and measured for starts from rest (348 position runs in both directions, 314 velocity runs); a change between two speeds also takes the whole ramp time (7 runs); deceleration and homing ramps remain unresolved |
 | Position unit | Command pulses, ±1,000,000 (documented, EN86 p11); a visual quarter-turn for 250 pulses on one specimen at `2201=1000` supports an approximate scale, not a qualified precise counts/turn relation |
 | Unit conversion in the drive | No CiA402 factor objects at `6091`, `6092`, `608F`, `6096`, `6097`, `60A8` or `60A9` appear in the EDS; no configurable native conversion is established |
 | Reported position rate | `6064` rate fits 0.992 × the nominal whole-pulse rate at `2201=1000`; physical shaft speed and cause remain unmeasured |
@@ -44,8 +44,9 @@ The page-by-page audit behind this guide is the [units re-audit](reports/2026-11
 | `2501` | Encoder resolution | Not stated; the specimens read 4000 with a 1000-line encoder | U16 | documented, EN86 p19 and p3 |
 
 The EDS has no maximum-speed, polarity or quick-stop deceleration object at `6080`, `607F`, `607E` or `6085`.
-This absence establishes no undocumented firmware capability. Implemented unit conversions happen on the host;
-no acceleration-to-ramp conversion is implemented yet (see "Ramps" below).
+This absence establishes no undocumented firmware capability. Implemented unit conversions happen on the host,
+including an acceleration into the ramp time of a start from rest, inside the measured boxes only (see "Ramps"
+below).
 
 ## The rpm problem
 
@@ -181,15 +182,15 @@ D = L + T/2. Nothing here is qualified, and the results hold only inside the sta
 
 | Case | Box | Result |
 | --- | --- | --- |
-| Position start from rest | 2 to 300 rpm, `6083` 100 to 2000 ms, 144 runs | D = 17 ms + 0.505 × `6083` after the bit 4 write (110 runs at 20 rpm and above, rms 1.6 ms): the ramp is the time from rest to the commanded speed. In 66 runs with `6083` ≠ `6084`, `6083` sets it (rms 1.5 ms; `6084` fits at 204 ms). A fixed rate per 1000 rpm fits at 158 ms and is excluded. The fitted start velocity is -0.2 ± 0.03 rpm, so the data fit the EN86/ZH86 figure from rest, not OP86's start velocity |
-| Velocity start from rest | 6 to 4500 rpm, both signs, 200 to 2000 ms, `6083` = `6084` in every run, 314 runs | D = 466 ms + 0.502 × T after word `000F` (229 runs at 20 rpm and above, rms 7 ms; rms 0.6 ms at 3001 rpm and above): the same ramp from rest, after a start latency of about 0.465 s. Which of `6083` and `6084` sets it is not shown |
+| Position start from rest | 2 to 300 rpm and three reverse runs at 600 rpm, both directions (143 forward, 205 reverse), `6083` 100 to 1000 ms and one run at 2000 ms (trial 52020), 348 runs | D = 17 ms + 0.504 × `6083` after the bit 4 write (278 runs at 20 rpm and above, rms 1.4 ms): the ramp is the time from rest to the commanded speed. In 191 runs with `6083` ≠ `6084`, `6083` sets it (rms 1.4 ms; `6084` fits at 172 ms). A fixed rate per 1000 rpm fits at 142 ms and is excluded. The fitted start velocity is -0.18 ± 0.02 rpm, so the data fit the EN86/ZH86 figure from rest, not OP86's start velocity |
+| Velocity start from rest | 6 to 4500 rpm, both signs, 200 to 2000 ms, `6083` = `6084` in every run, 314 runs; 23 above 3000 rpm and 4500 rpm completed once (node 2, 2000 ms) | D = 466 ms + 0.502 × T after word `000F` (229 runs at 20 rpm and above, rms 7 ms; rms 0.6 ms at 3001 rpm and above): the same ramp from rest, after a start latency of about 0.465 s. Which of `6083` and `6084` sets it is not shown |
 | Change between two speeds | Velocity mode, 30 to 60 and 60 to 30 rpm at 500 ms, 6 to 60 rpm at 200 ms, `6083` = `6084`, 7 runs | Each change takes the whole ramp time, whatever its size, after a 16 to 19 ms reaction |
 | HALT | Trial 709 (position, 300 rpm, `6084` = 500 ms); trials 1507 and 1613 (velocity, 30 and 60 rpm, 200 ms); `6083` = `6084` | The stop distances fit a ramp-down lasting `6084` after 14 to 18 ms. Three runs only: unresolved |
 | Quick stop (`000B`) | 170 runs, 6 to 60 rpm, `6084` 200, 500 and 1000 ms | The stop distance equals 4 to 7 ms of cruise travel (quartiles) whatever `6084` is: the quick stop does not follow `6084` |
 
 Two observations go with the law and are neither modelled nor compensated by the library. The reported cruise rate is
 0.99201 × floor(rpm × `2201` / 60) counts/s (median over the fitted runs, 20 to 4500 rpm, both modes, subdivisions
-1000 to 51200 inferred from the rate). The ramp lasts about 0.3 to 1 % longer than T (twice the fitted slope: 1.0105
+1000 to 51200 inferred from the rate). The ramp lasts about 0.3 to 1 % longer than T (twice the fitted slope: 1.0083
 in position mode, 1.003 to 1.008 in velocity mode); a single slower motion clock (1 / 0.99201 = 1.008) would explain
 both, which is only a hypothesis. At 2000 ms the stretch is at most about 20 ms.
 
@@ -201,8 +202,9 @@ a [turns/s²] = (rpm / 60) / (ms / 1000), or a [rpm/s] = rpm × 1000 / ms
 
 where rpm is the commanded whole-rpm speed and ms the ramp time (`6083` in position mode; one value written to both
 `6083` and `6084` in velocity mode). The same ramp time gives a higher acceleration at
-a higher speed: a 200 ms ramp is 25 turns/s² to 300 rpm and 250 turns/s² to 3000 rpm (inferred arithmetic). Position
-starts above 300 rpm are not measured; velocity-mode evidence is not position-mode evidence.
+a higher speed: a 200 ms ramp is 25 turns/s² to 300 rpm and 250 turns/s² to 3000 rpm (inferred arithmetic). Above
+300 rpm only three reverse position starts at 600 rpm (1000 ms) are measured; velocity-mode evidence is not
+position-mode evidence.
 
 **Correction (2026-11-27).** Old claim (this guide and the [units re-audit](reports/2026-11-13_units_reaudit.md)
 section 2, 2026-11-13): a = rpm × 1000 / ms with rpm "the commanded speed of that move". Applied to a change from 30
@@ -245,7 +247,8 @@ Zero ramp times have no documented meaning, and the library refuses them. No doc
 nonzero speeds, the velocity- and homing-mode ramps (no figure) or the shape of the curve. Still unmeasured or
 unresolved ([Q11](device_conflicts.md)): deceleration (three HALT runs fit a ramp-down lasting `6084`, and position
 arrivals are bracketed only by polls about 1 s apart), which object sets the velocity-mode ramp, speed changes in
-position mode or outside 6 to 60 rpm, position starts above 300 rpm, the homing ramp `609A` (no retained record writes
+position mode or outside 6 to 60 rpm, position starts above 300 rpm (three runs at 600 rpm) and with `6083` above
+1000 ms (one run), the homing ramp `609A` (no retained record writes
 it), the curve between the samples, and the cause of the rate shortfall and the ramp stretch.
 
 ## Positions
@@ -318,22 +321,52 @@ and `CEIL`. The allowance is always checked, so a request is never rounded furth
 
 ### Ramps
 
-Ramps are native milliseconds only: `MoveProfile::rampUpTimeMs`/`rampDownTimeMs`
+Ramps are native milliseconds by default: `MoveProfile::rampUpTimeMs`/`rampDownTimeMs`
 (`include/MotorControlCAN/profiles/lichuan_c/Position.h`), `VelocityProfile` (`Velocity.h`) and the homing ramp, each
-1..2000, zero refused. `AccelerationUnit` and `convertAcceleration` exist in `Units.h`, but nothing converts an
-acceleration to a ramp time yet ([units and status](units_status.md)). The start-from-rest law above is now measured;
-prompt 60 stage (b) is adding its conversion, with the unmeasured cases refused (planned, not implemented).
+1..2000, zero refused. Two calls convert an acceleration into the ramp time of a start from rest
+([units and status](units_status.md)):
+
+- `prepareRampTime` (`include/MotorControlCAN/Axis.h`, common) computes T = 1000 × |V| / a ms exactly for a prepared
+  speed V and an `AccelerationRequest` (value, `AccelerationUnit`, frame, rounding, and an allowance in the
+  acceleration's unit), rounds it once and reports the exact time, the effective acceleration and its error. The
+  caller supplies the admitted millisecond range.
+- `LICHUAN_C::prepareAccelerationRamp` (`Position.h`) prepares the speed exactly as the move or run will, refuses every
+  unmeasured `RampUse` (a move's `6084`, a separate velocity `6084`, a velocity change, a move replacement, the homing
+  ramp) before computing anything, and admits only the measured boxes: a move 2 to 300 rpm with `6083` 100 to
+  1000 ms, a velocity run 6 to 3000 rpm with 200 to 2000 ms (the time after rounding, the speed as written).
+
+Each box lies inside the bounding box of the measured points ([ramp analysis](bench/20261127-p60-ramp-analysis/README.md)): above 1000 ms
+there is one position run, and 4500 rpm completed once while 4000 rpm faulted FF05 with 200 ms ramps (2026-11-13).
+Not every corner inside a box was measured: velocity runs at 6 to 10 rpm only with 200 ms ramps, at 60 to 300 rpm
+only with 1000 ms, and above 1000 rpm almost only with 2000 ms. A move too short to reach its speed never shows the
+law, so its effective acceleration is inference.
+
+The result's `time.effectiveMs` goes into `6083` of a move (`6084` stays native) or into both ramps of a velocity
+run, and its `source` into the profile's `rampSource`. The move and velocity preparations accept that source only for
+the start it was made for: `MOVE_START` or `VELOCITY_START`, the current binding and configuration epoch, the same
+effective speed and the same time in each ramp it fills; anything else is refused with `RAMP_SOURCE` before any work.
+The prepared context keeps the source, and a velocity change or move replacement of a run whose ramps came from an
+acceleration is refused with `RAMP_CHANGE`: a measured change takes the whole ramp time, so the unchanged ramp would
+silently give another acceleration. Runs with native milliseconds are unaffected. Every native, identity and record
+limit still applies to the converted time, so the unit form never widens a limit.
 
 ### Console
 
 The example console mirrors the API ([CLI contract](cli_contract.md)):
 
-- `velocity VALUE RATE FRAME DURATION_MS configured normal|fast [round POLICY ERROR]` takes user rate units (`rpm`,
-  `turns/s`, `mm/s`, `deg/s` and the other `UNIT/s` forms) and a rounding policy, for example
-  `velocity 1.3 mm/s load 5000 configured fast round nearest 1/2`.
-- `speed VALUE [rpm]` for the simple moves, and the speed of `move ... RPM configured`, take exact motor rpm only.
-- `accel VALUE [ms]` and `decel VALUE [ms]` take milliseconds only.
-- `home METHOD SEARCH_RPM RETURN_RPM RAMP_MS zero` takes rpm and milliseconds.
+- `velocity VALUE RATE FRAME DURATION_MS [RAMP] configured normal|fast [round POLICY ERROR]` takes user rate units
+  (`rpm`, `turns/s`, `mm/s`, `deg/s` and the other `UNIT/s` forms) and a rounding policy, for example
+  `velocity 1.3 mm/s load 5000 configured fast round nearest 1/2`; `RAMP` is
+  `accel VALUE ACCEL FRAME [round POLICY ERROR]` and sets both ramps.
+- `speed VALUE [rpm]` or `speed VALUE RATE FRAME [round POLICY ERROR]` sets the simple moves' speed, and a `move`
+  takes `SPEED [RAMP] configured`, where `SPEED` is a bare motor rpm or `speed VALUE RATE FRAME [round POLICY ERROR]`
+  and `RAMP` sets `6083` only.
+- `accel VALUE [ms]` takes milliseconds and `accel VALUE ACCEL FRAME [round POLICY ERROR]` an acceleration that each
+  move converts for `6083`; `decel VALUE [ms]` takes milliseconds only, and its acceleration form is refused.
+- `home METHOD SPEED SPEED RAMP_MS zero` takes speeds in either form and milliseconds; an acceleration is refused.
+- After the accepted reply, an operation that used an acceleration prints one `ramp_value` record. `move speed`,
+  `move ramps`, `move retarget` and `velocity change` on such an operation are refused before any frame
+  (`RAMP_CHANGE`), and a retarget or velocity change takes no `RAMP` of its own.
 
 ## What prompts 59 and 60 add
 
@@ -349,8 +382,8 @@ whole milliseconds using the integer rpm actually sent, with the rounding stated
 reported; speeds in user units for position, velocity and homing; and console forms such as
 `move ID absolute 12.5mm speed 20mm/s accel 100mm/s2` that call the API only. Ramps under 1 ms or over 2000 ms are
 refused, never clamped. Prompt 59 did not record the ramp law; prompt 60 measured it from the retained records
-([ramp analysis](bench/20261127-p60-ramp-analysis/README.md)); its planned conversion covers only the measured box
-(starts from rest), and the [prompt 60 report](reports/prompt_60.md) lists the cases that stay refused.
+([ramp analysis](bench/20261127-p60-ramp-analysis/README.md)); its conversion (see "Ramps") covers only the measured
+boxes (starts from rest), and the [prompt 60 report](reports/prompt_60.md) lists the cases that stay refused.
 
 Neither prompt will hide the 0.992 or the truncation: the library keeps reporting what it sent, and the measured
 behavior is documented beside it.

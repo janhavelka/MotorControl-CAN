@@ -69,6 +69,13 @@ enum class MoveError : int32_t {
     /** The drive's own relative base is not evidenced for the requested basis: unmeasured, a
      * different base, or a queued basis that needs a target queue. Returned with UNSUPPORTED. */
     RELATIVE_BASIS,
+    /** The profile's acceleration-form ramp does not belong to this preparation: another use, a stale
+     * binding or configuration epoch, another speed, or a different native time. A replacement takes
+     * native milliseconds only. */
+    RAMP_SOURCE,
+    /** The original move's ramp came from the acceleration form, so it cannot be replaced: on the
+     * measured drive a change takes the whole ramp time, which would silently change the acceleration. */
+    RAMP_CHANGE,
     PARAMETER_ERROR_BASE = 1000, ///< Added to a profile parameter-preparation detail.
     RATE_ERROR_BASE = 5000       ///< Added to a speed-preparation AxisError detail.
 };

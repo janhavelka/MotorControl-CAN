@@ -102,44 +102,35 @@ Status preparePositionParameters(PreparedPositionParameters& output, SettingsMod
                                  const AxisReference* reference, const DriverSettings& settings,
                                  uint64_t nowUs) noexcept;
 
-/** Which native ramp an acceleration-form request would set (prepareAccelerationRamp). On the CL86-C
- * the ramp time is MEASURED only for starts from rest (docs/bench/20261127-p60-ramp-analysis, drive
- * reports of both specimens, one firmware, measuredIdentity()); every other use is refused before any
- * work, and its native millisecond form stays available. */
-enum class RampUse : uint8_t {
-    /** 6083 of a finite move from rest (absolute, relative or angle): the time from rest to the move
-     * speed. Measured at 2 to 300 rpm with 6083 100 to 2000 ms, 6083 governing it, not 6084; only
-     * that time range is admitted. Write PreparedRampTime::effectiveMs to MoveProfile::rampUpTimeMs;
-     * rampDownTimeMs stays native. */
-    MOVE_START,
-    /** 6083 and 6084 of a velocity run from rest, one value written to both: the time from rest to the
-     * rate. Measured at 6 to 4500 rpm with 200 to 2000 ms, always with 6083 = 6084; only that time
-     * range is admitted. Write PreparedRampTime::effectiveMs to both VelocityProfile ramps. */
-    VELOCITY_START,
-    MOVE_DECELERATION,     ///< 6084 of a move. Refused: deceleration is unresolved (three HALT runs).
-    VELOCITY_DECELERATION, ///< A separate velocity 6084. Refused: only 6083 = 6084 was measured.
-    /** A change between two nonzero rates (prepareVelocityChange). Refused: seven runs only. */
-    VELOCITY_CHANGE,
-    MOVE_REPLACEMENT, ///< The ramps of prepareMoveReplacement. Refused: changes are unmeasured as a law.
-    HOMING            ///< 609A of a home. Refused: no retained record writes 609A.
-};
-/** Lowest effective move speed of the measured start-from-rest law, motor rpm. */
+// The boxes of the acceleration form; prepareAccelerationRamp documents them.
+/** Lowest effective move speed, motor rpm: the slowest measured move start. */
 constexpr uint32_t MOVE_RAMP_LAW_MINIMUM_RPM = 2;
-/** Highest effective move speed of the measured law; faster moves keep native milliseconds. */
+/** Highest effective move speed, motor rpm; faster moves keep native milliseconds. Three reverse
+ * runs at 600 rpm (1000 ms) lie outside the box. */
 constexpr uint32_t MOVE_RAMP_LAW_MAXIMUM_RPM = 300;
-/** Lowest effective rate magnitude of the measured velocity start-from-rest law, motor rpm. */
-constexpr uint32_t VELOCITY_RAMP_LAW_MINIMUM_RPM = 6;
-/** Highest effective rate magnitude of the measured velocity law. It widens no velocity limit:
- * prepareVelocity still admits only its own and the record's ranges. */
-constexpr uint32_t VELOCITY_RAMP_LAW_MAXIMUM_RPM = 4500;
-/** Shortest rounded move ramp the acceleration form admits, ms: the shortest measured 6083. A
- * shorter native time stays available in milliseconds. */
+/** Shortest rounded 6083 of a move, ms: the shortest measured one. */
 constexpr uint32_t MOVE_RAMP_LAW_MINIMUM_MS = 100;
-/** Shortest rounded velocity ramp the acceleration form admits, ms: the shortest measured one. */
+/** Longest rounded 6083 of a move, ms. Above 1000 ms there is one measured run (trial 52020). */
+constexpr uint32_t MOVE_RAMP_LAW_MAXIMUM_MS = 1000;
+/** Lowest effective rate magnitude of a velocity run, motor rpm: the slowest measured start. */
+constexpr uint32_t VELOCITY_RAMP_LAW_MINIMUM_RPM = 6;
+/** Highest effective rate magnitude of a velocity run, motor rpm. 4500 rpm completed once (node 2,
+ * 2000 ms), and 4000 rpm faulted FF05 with 200 ms ramps (2026-11-13). */
+constexpr uint32_t VELOCITY_RAMP_LAW_MAXIMUM_RPM = 3000;
+/** Shortest rounded velocity ramp, ms: the shortest measured one. */
 constexpr uint32_t VELOCITY_RAMP_LAW_MINIMUM_MS = 200;
-/** Longest rounded ramp the acceleration form admits in either mode, ms: the longest measured one,
- * also the documented 6083/6084 maximum (EN86/ZH86 p11, p13). */
-constexpr uint32_t RAMP_LAW_MAXIMUM_MS = 2000;
+/** Longest rounded velocity ramp, ms: the longest measured one, also the documented 6083/6084
+ * maximum (EN86/ZH86 p11, p13). */
+constexpr uint32_t VELOCITY_RAMP_LAW_MAXIMUM_MS = 2000;
+/** Result of prepareAccelerationRamp: the native time with its exact evidence, and the record the
+ * profile it fills carries so that the preparation can check it (RampSource). */
+struct PreparedAccelerationRamp {
+    PreparedRampTime time; ///< The native time, effectiveMs, and its exact evidence.
+    /** Copy into MoveProfile::rampSource (MOVE_START) or VelocityProfile::rampSource (VELOCITY_START)
+     * with time.effectiveMs in the ramp(s) it fills: acceleration true, the use, and time's binding,
+     * speedNative and effectiveMs again. */
+    RampSource source;
+};
 /** Function-specific Status::detail of prepareAccelerationRamp. */
 enum class RampError : int32_t {
     NONE,        ///< No error.
@@ -153,15 +144,23 @@ enum class RampError : int32_t {
 /** Convert an exact acceleration magnitude into the native 6083 (and for a velocity run 6084) time of a
  * start from rest, where the measured CL86-C law makes the ramp time the time from rest to the
  * effective commanded speed: T [ms] = rpm x 1000 / (60 x a [motor turns/s^2]) (prepareRampTime), with
- * the rounded time inside the measured range: MOVE_RAMP_LAW_MINIMUM_MS or VELOCITY_RAMP_LAW_MINIMUM_MS
- * up to RAMP_LAW_MAXIMUM_MS. The speed is prepared here with prepareVelocityTarget from the same request and axis the
- * move or run uses, so the time belongs to the whole rpm actually written. This only computes: the
- * result goes into the native profile, and prepareMoveAbsolute, prepareMoveRelative, prepareMoveAngle
- * or prepareVelocity then apply every native and identity rule (prompt 57 policy) and any bound record
+ * the speed and rounded time inside the use's box (MOVE_RAMP_LAW_*, VELOCITY_RAMP_LAW_*). Each box
+ * lies inside the bounding box of the measured points (docs/bench/20261127-p60-ramp-analysis): a move
+ * 2 to 300 rpm with 6083 100 to 1000 ms, a velocity run 6 to 3000 rpm with 200 to 2000 ms; native
+ * milliseconds outside a box stay available. Not every corner inside a box was measured: velocity
+ * runs at 6 to 10 rpm only with 200 ms ramps, at 60 to 300 rpm only with 1000 ms and above 1000 rpm
+ * almost only with 2000 ms. A move too short to reach its speed never shows the law, so its
+ * effectiveAcceleration is inference.
+ * The speed is prepared here with prepareVelocityTarget from the same request and axis the move or run
+ * uses, so the time belongs to the whole rpm actually written. This only computes: the caller writes
+ * output.time.effectiveMs into the native profile with output.source in its rampSource, and
+ * prepareMoveAbsolute, prepareMoveRelative, prepareMoveAngle or prepareVelocity then check that source
+ * against the request and apply every native and identity rule (prompt 57 policy) and any bound record
  * (checkRecordMove, checkRecordVelocity) to it, so a unit request never widens a limit. The reported
  * 0.992 count rate and the ramp lasting about 0.3 to 1 % longer than the time written are
  * observations, not compensated.
- * @param[out] output Ramp-time evidence; effectiveMs is the native value. Unchanged on failure.
+ * @param[out] output Ramp-time evidence and its profile record; time.effectiveMs is the native
+ * value. Unchanged on failure.
  * @param[in] use The ramp to set; only MOVE_START and VELOCITY_START convert.
  * @param[in] acceleration Positive magnitude with its rounding and allowance (prepareRampTime).
  * @param[in] speed The move's MoveRequest::speed or the run's FiniteVelocityRequest::velocity.
@@ -171,7 +170,7 @@ enum class RampError : int32_t {
  * prepareRampTime's (AXIS_ERROR_BASE added: LIMIT for a time outside the measured range, an EXACT
  * fraction, the acceleration allowance, radians, a stale request).
  * @note Pure and bounded: no I/O, clock or allocation; inputs are borrowed for the call only. */
-Status prepareAccelerationRamp(PreparedRampTime& output, RampUse use,
+Status prepareAccelerationRamp(PreparedAccelerationRamp& output, RampUse use,
                                const AccelerationRequest& acceleration, const VelocityRequest& speed,
                                const AxisConfig& axis) noexcept;
 
@@ -279,6 +278,11 @@ struct MoveProfile {
     /** Bit 5 immediate update (003F, or 007F for a relative target). A new edge during a curve is
      * unqualified, so true is UNSUPPORTED for both moves. */
     bool immediateUpdate = false;
+    /** Native milliseconds by default. A MOVE_START acceleration-form 6083 carries its
+     * PreparedAccelerationRamp::source here, with rampUpTimeMs its time.effectiveMs; the move
+     * preparations check it (MoveError::RAMP_SOURCE), and a replacement of such a move is refused
+     * (MoveError::RAMP_CHANGE). rampDownTimeMs stays native. */
+    RampSource rampSource;
 };
 /** Caller policy, not manufacturer timing. Defaults refuse. */
 struct MoveOptions {
@@ -341,7 +345,9 @@ struct MoveFeedbackRelation {
  * Relative, wrapped, shortened/reversing targets and zero speed/ramps remain refused. */
 struct MoveReplacementRequest {
     MoveRequest request; ///< Exact absolute target and positive speed.
-    MoveProfile profile; ///< Positive native ramp times; WRITE_ALL and immediateUpdate=false.
+    /** Positive native ramp times; WRITE_ALL, immediateUpdate=false and no acceleration-form
+     * rampSource (MoveError::RAMP_SOURCE). */
+    MoveProfile profile;
     MoveReplacementMode mode = MoveReplacementMode::BARE; ///< Explicit wire behavior.
     uint8_t fields =
         0; ///< Writes selected: 1=607A, 2=6081, 4=6083, 8=6084; zero for FALLING_EDGE only.
@@ -489,7 +495,10 @@ Status prepareStoredPositionQualification(StoredPositionQualification& output,
  * @param[in] request Exact replacement intent. @param[in] axis Actual current conversion configuration.
  * @param[in] feedback Explicit measured mapping required only for a different target, null otherwise.
  * @param[in] operation Distinct increasing identity. @param[in] nowUs Processing microseconds.
- * @return Atomic local validation. Original deadline/options are inherited, never extended. */
+ * @return Atomic local validation. Original deadline/options are inherited, never extended. An
+ * original whose 6083 came from the acceleration form is refused with RAMP_CHANGE before any work
+ * (the measured change law takes the whole ramp time, which would silently change the acceleration),
+ * and a request profile with an acceleration-form rampSource with RAMP_SOURCE. */
 Status validateMoveReplacement(const MoveContext& output, const MoveContext& original,
                                const StoredPositionQualification& stored,
                                const AxisReservation& live, const ReadTarget& current,
@@ -570,7 +579,10 @@ Status validateMoveAbsolute(const MoveContext& output, const AxisReservation& re
  * @param[in] evidence Capability gate and measured signals, copied. CLOSED returns UNSUPPORTED.
  * @param[in] request Unwrapped absolute position and positive speed, both with configuration epoch
  * axis.binding.configurationGeneration. A relative or wrapped position is refused here.
- * @param[in] profile Native ramps and policies. Immediate update returns UNSUPPORTED.
+ * @param[in] profile Native ramps and policies. Immediate update returns UNSUPPORTED. An
+ * acceleration-form rampSource must be MOVE_START, under the reservation's current binding, for the
+ * speed's effective rpm and with rampUpTimeMs its effectiveMs, or the move is refused with
+ * RAMP_SOURCE before any work; the frozen profile keeps it.
  * @param[in] stored REUSE_STORED only: fresh complete MOTION_PARAMETERS read under the reservation on
  * current, unretired. Ignored, and may be null, for WRITE_ALL. It must also be in the retained list of
  * every later noteMoveTransmission on this axis, or a later reuse can miss a value a move wrote.

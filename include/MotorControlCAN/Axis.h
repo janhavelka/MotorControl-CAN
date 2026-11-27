@@ -309,8 +309,11 @@ Status prepareVelocityTarget(const VelocityRequest& request, const AxisConfig& c
  * the same unit rules as prepareVelocityTarget. Under MOTOR_TURNS with MINUTE this is
  * T = rpm x 1000 / (60 x a [motor turns/s^2]). Exact Rational arithmetic, no floating point; the
  * speed used is the quantized integer actually prepared, not the original request.
- * Refusal precedence: configuration, epochs, the speed, the request, the range, the unit
- * conversion, storage, rounding, range, allowance.
+ * Refusal precedence, as implemented: configuration, epochs, the speed, the request, the range
+ * arguments, the unit conversion, storage of the exact time, its rounding (an EXACT fraction), the
+ * rounded time against the range (LIMIT), storage of the effective acceleration and its error, the
+ * allowance. So an exact time too large for fixed storage reports ARITHMETIC_OVERFLOW before it
+ * could be found outside the range.
  * @param[in] request Acceleration magnitude, its rounding and its allowance.
  * @param[in] speed Rate from prepareVelocityTarget under config: same binding, rate basis and time,
  * INTEGER representation, nonzero effectiveNative (either sign).

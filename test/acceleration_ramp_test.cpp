@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: MIT
-// prepareAccelerationRamp (prompt 60, slice b3): hand-computed ramp times in both modes, every refusal,
-// a native 6083/6084 written from an acceleration producing the same traffic as the same native
-// milliseconds, and records and library limits never widened by the unit form. The rigs' drives are
-// the synthetic fakes of MoveRig.h and VelocityRig.h, not device behavior.
+// prepareAccelerationRamp (prompt 60, slice b3 and stage (c)): hand-computed ramp times in both modes,
+// the boxes' edges and ties, every refusal, a native 6083/6084 written from an acceleration producing
+// the same traffic as the same native milliseconds, the checked placement of the ramp source, the
+// refused change of an acceleration-form run, and records and library limits never widened by the
+// unit form. The rigs' drives are the synthetic fakes of MoveRig.h and VelocityRig.h, not device
+// behavior.
 #include <MotorControlCAN/profiles/lichuan_c/Records.h>
 #include <cstdio>
 #include <cstdlib>
@@ -70,23 +72,23 @@ M::AccelerationRequest accel(const M::AxisConfig& axis, int64_t n, uint64_t d = 
 void moveStarts() {
     scenario = "move starts";
     const M::AxisConfig axis = moveAxis();
-    M::PreparedRampTime out;
+    L::PreparedAccelerationRamp out;
     // 120 rpm at 1200 rpm/s: 100 ms.
     CHECK(L::prepareAccelerationRamp(out, L::RampUse::MOVE_START, accel(axis, 1200), rpm(axis, 120), axis));
-    CHECK(out.effectiveMs == 100 && equal(out.exactMs, 100, 1) && out.speedNative == 120);
+    CHECK(out.time.effectiveMs == 100 && equal(out.time.exactMs, 100, 1) && out.time.speedNative == 120);
     // The same as 4 load turns/s^2: x5 gear = 20 motor turns/s^2 = 1200 rpm/s.
     CHECK(L::prepareAccelerationRamp(out, L::RampUse::MOVE_START, accel(axis, 4, 1, TURNS_PER_S2, M::CoordinateFrame::LOAD),
                                      rpm(axis, 120), axis));
-    CHECK(out.effectiveMs == 100 && equal(out.effectiveAcceleration, 4, 1));
+    CHECK(out.time.effectiveMs == 100 && equal(out.time.effectiveAcceleration, 4, 1));
     // 300 rpm at 1800 rpm/s: 500/3 ms; NEAREST 167, effective 1800 x (500/3) / 167 = 300000/167 rpm/s.
     CHECK(L::prepareAccelerationRamp(out, L::RampUse::MOVE_START,
                                      accel(axis, 1800, 1, RPM_PER_S, M::CoordinateFrame::NATIVE, M::Rounding::NEAREST),
                                      rpm(axis, 300), axis));
-    CHECK(out.effectiveMs == 167 && equal(out.exactMs, 500, 3) && equal(out.effectiveAcceleration, 300000, 167));
+    CHECK(out.time.effectiveMs == 167 && equal(out.time.exactMs, 500, 3) && equal(out.time.effectiveAcceleration, 300000, 167));
     // The measured box, on the effective rpm: 2 and 300 convert, 1 and 301 refuse though 6081 admits them.
     CHECK(L::prepareAccelerationRamp(out, L::RampUse::MOVE_START, accel(axis, 20), rpm(axis, 2), axis) &&
-          out.effectiveMs == 100);
-    const Snapshot<M::PreparedRampTime> kept(out);
+          out.time.effectiveMs == 100);
+    const Snapshot<L::PreparedAccelerationRamp> kept(out);
     CHECK(refused(L::prepareAccelerationRamp(out, L::RampUse::MOVE_START, accel(axis, 10), rpm(axis, 1), axis),
                   M::Err::UNSUPPORTED, L::RampError::OUTSIDE_LAW));
     CHECK(refused(L::prepareAccelerationRamp(out, L::RampUse::MOVE_START, accel(axis, 3010), rpm(axis, 301), axis),
@@ -97,32 +99,70 @@ void moveStarts() {
     fractional.rounding = M::Rounding::NEAREST;
     fractional.maximumQuantizationError = M::Rational(1, 2);
     CHECK(L::prepareAccelerationRamp(out, L::RampUse::MOVE_START, accel(axis, 3000), fractional, axis) &&
-          out.speedNative == 300 && out.effectiveMs == 100);
+          out.time.speedNative == 300 && out.time.effectiveMs == 100);
     fractional.value = M::Rational(1503, 5);
     CHECK(refused(L::prepareAccelerationRamp(out, L::RampUse::MOVE_START, accel(axis, 3000), fractional, axis),
                   M::Err::UNSUPPORTED, L::RampError::OUTSIDE_LAW));
-    // Only the measured 100..2000 ms after rounding: 300 rpm at 3000 rpm/s is 100 ms (admitted), at
-    // 100000/33 rpm/s exactly 99 ms (refused); at 150 rpm/s 2000 ms, at 149 rpm/s 2013.4 ms; at
-    // 600000 rpm/s 0.5 ms, NEAREST 0.
+    // Only 100..1000 ms after rounding: 300 rpm at 3000 rpm/s is 100 ms (admitted), at 100000/33
+    // rpm/s exactly 99 ms (refused); at 300 rpm/s 1000 ms (admitted), at 300000/1001 rpm/s 1001 ms,
+    // at 150 rpm/s 2000 ms and at 300000/2001 rpm/s 2001 ms (refused); at 600000 rpm/s 0.5 ms,
+    // NEAREST 0.
     const int32_t limit = AXIS_BASE + int32_t(M::AxisError::LIMIT);
     CHECK(L::prepareAccelerationRamp(out, L::RampUse::MOVE_START, accel(axis, 3000), rpm(axis, 300), axis) &&
-          out.effectiveMs == L::MOVE_RAMP_LAW_MINIMUM_MS);
+          out.time.effectiveMs == L::MOVE_RAMP_LAW_MINIMUM_MS);
     CHECK(refused(L::prepareAccelerationRamp(out, L::RampUse::MOVE_START, accel(axis, 100000, 33), rpm(axis, 300), axis),
                   M::Err::ILLEGAL_VALUE, limit));
     // 99.97 ms rounds to 100 under NEAREST and is admitted; FLOOR gives 99 and refuses.
     CHECK(L::prepareAccelerationRamp(out, L::RampUse::MOVE_START,
                                      accel(axis, 3001, 1, RPM_PER_S, M::CoordinateFrame::NATIVE, M::Rounding::NEAREST),
-                                     rpm(axis, 300), axis) && out.effectiveMs == 100);
+                                     rpm(axis, 300), axis) && out.time.effectiveMs == 100);
     CHECK(refused(L::prepareAccelerationRamp(out, L::RampUse::MOVE_START,
                                              accel(axis, 3001, 1, RPM_PER_S, M::CoordinateFrame::NATIVE, M::Rounding::FLOOR),
                                              rpm(axis, 300), axis),
                   M::Err::ILLEGAL_VALUE, limit));
-    CHECK(L::prepareAccelerationRamp(out, L::RampUse::MOVE_START, accel(axis, 150), rpm(axis, 300), axis) &&
-          out.effectiveMs == L::RAMP_LAW_MAXIMUM_MS);
+    CHECK(L::prepareAccelerationRamp(out, L::RampUse::MOVE_START, accel(axis, 300), rpm(axis, 300), axis) &&
+          out.time.effectiveMs == L::MOVE_RAMP_LAW_MAXIMUM_MS && L::MOVE_RAMP_LAW_MAXIMUM_MS == 1000);
+    CHECK(refused(L::prepareAccelerationRamp(out, L::RampUse::MOVE_START, accel(axis, 300000, 1001), rpm(axis, 300), axis),
+                  M::Err::ILLEGAL_VALUE, limit));
+    CHECK(refused(L::prepareAccelerationRamp(out, L::RampUse::MOVE_START, accel(axis, 150), rpm(axis, 300), axis),
+                  M::Err::ILLEGAL_VALUE, limit));
+    CHECK(refused(L::prepareAccelerationRamp(out, L::RampUse::MOVE_START, accel(axis, 300000, 2001), rpm(axis, 300), axis),
+                  M::Err::ILLEGAL_VALUE, limit));
     CHECK(refused(L::prepareAccelerationRamp(out, L::RampUse::MOVE_START,
                                              accel(axis, 149, 1, RPM_PER_S, M::CoordinateFrame::NATIVE, M::Rounding::NEAREST),
                                              rpm(axis, 300), axis),
                   M::Err::ILLEGAL_VALUE, limit));
+    // Ties at the time edges round to even: 99.5 and 100.5 ms give 100, 999.5 and 1000.5 ms give
+    // 1000 (all admitted), 1001.5 ms gives 1002 (refused). 300 rpm at 600000/(2T) rpm/s is T ms.
+    const M::Rounding NEAREST = M::Rounding::NEAREST;
+    const M::CoordinateFrame NATIVE = M::CoordinateFrame::NATIVE;
+    CHECK(L::prepareAccelerationRamp(out, L::RampUse::MOVE_START, accel(axis, 600000, 199, RPM_PER_S, NATIVE, NEAREST),
+                                     rpm(axis, 300), axis) && out.time.effectiveMs == 100);
+    CHECK(L::prepareAccelerationRamp(out, L::RampUse::MOVE_START, accel(axis, 600000, 201, RPM_PER_S, NATIVE, NEAREST),
+                                     rpm(axis, 300), axis) && out.time.effectiveMs == 100);
+    CHECK(L::prepareAccelerationRamp(out, L::RampUse::MOVE_START, accel(axis, 600000, 1999, RPM_PER_S, NATIVE, NEAREST),
+                                     rpm(axis, 300), axis) && out.time.effectiveMs == 1000);
+    CHECK(L::prepareAccelerationRamp(out, L::RampUse::MOVE_START, accel(axis, 600000, 2001, RPM_PER_S, NATIVE, NEAREST),
+                                     rpm(axis, 300), axis) && out.time.effectiveMs == 1000);
+    CHECK(refused(L::prepareAccelerationRamp(out, L::RampUse::MOVE_START,
+                                             accel(axis, 600000, 2003, RPM_PER_S, NATIVE, NEAREST), rpm(axis, 300), axis),
+                  M::Err::ILLEGAL_VALUE, limit));
+    // Ties at the speed edges, on the rounded rpm: 1.5 and 2.5 rpm give 2, 300.5 gives 300 (admitted),
+    // 301.5 gives 302 (refused). The time follows the rounded speed.
+    M::VelocityRequest tie = rpm(axis, 3, 2);
+    tie.rounding = NEAREST;
+    tie.maximumQuantizationError = M::Rational(1);
+    CHECK(L::prepareAccelerationRamp(out, L::RampUse::MOVE_START, accel(axis, 20), tie, axis) &&
+          out.time.speedNative == 2 && out.time.effectiveMs == 100);
+    tie.value = M::Rational(5, 2);
+    CHECK(L::prepareAccelerationRamp(out, L::RampUse::MOVE_START, accel(axis, 20), tie, axis) &&
+          out.time.speedNative == 2);
+    tie.value = M::Rational(601, 2);
+    CHECK(L::prepareAccelerationRamp(out, L::RampUse::MOVE_START, accel(axis, 3000), tie, axis) &&
+          out.time.speedNative == 300 && out.time.effectiveMs == 100);
+    tie.value = M::Rational(603, 2);
+    CHECK(refused(L::prepareAccelerationRamp(out, L::RampUse::MOVE_START, accel(axis, 3000), tie, axis),
+                  M::Err::UNSUPPORTED, L::RampError::OUTSIDE_LAW));
     CHECK(refused(L::prepareAccelerationRamp(out, L::RampUse::MOVE_START,
                                              accel(axis, 600000, 1, RPM_PER_S, M::CoordinateFrame::NATIVE, M::Rounding::NEAREST),
                                              rpm(axis, 300), axis),
@@ -136,19 +176,19 @@ void moveStarts() {
 void velocityStarts() {
     scenario = "velocity starts";
     const M::AxisConfig axis = VelocityRig::axisConfig(); // Direct drive, motor rpm.
-    M::PreparedRampTime out;
+    L::PreparedAccelerationRamp out;
     // 120 rpm at 600 rpm/s: 200 ms, the measured minimum; the same magnitude for -120 rpm.
     CHECK(L::prepareAccelerationRamp(out, L::RampUse::VELOCITY_START, accel(axis, 600), rpm(axis, 120), axis));
-    CHECK(out.effectiveMs == 200 && out.speedNative == 120);
+    CHECK(out.time.effectiveMs == 200 && out.time.speedNative == 120);
     CHECK(L::prepareAccelerationRamp(out, L::RampUse::VELOCITY_START, accel(axis, 600), rpm(axis, -120), axis));
-    CHECK(out.effectiveMs == 200 && out.speedNative == -120);
+    CHECK(out.time.effectiveMs == 200 && out.time.speedNative == -120);
     // 120 rpm at 120000/199 rpm/s is exactly 199 ms, below the measured 200: refused; 2000 ms passes,
     // 2001 ms (120 rpm at 120000/2001 rpm/s) refuses.
     const int32_t limit = AXIS_BASE + int32_t(M::AxisError::LIMIT);
     CHECK(refused(L::prepareAccelerationRamp(out, L::RampUse::VELOCITY_START, accel(axis, 120000, 199), rpm(axis, 120), axis),
                   M::Err::ILLEGAL_VALUE, limit));
     CHECK(L::prepareAccelerationRamp(out, L::RampUse::VELOCITY_START, accel(axis, 60), rpm(axis, 120), axis) &&
-          out.effectiveMs == L::RAMP_LAW_MAXIMUM_MS);
+          out.time.effectiveMs == L::VELOCITY_RAMP_LAW_MAXIMUM_MS && L::VELOCITY_RAMP_LAW_MAXIMUM_MS == 2000);
     CHECK(refused(L::prepareAccelerationRamp(out, L::RampUse::VELOCITY_START, accel(axis, 120000, 2001), rpm(axis, 120), axis),
                   M::Err::ILLEGAL_VALUE, limit));
     // A 100 ms velocity ramp is inside the move range but below the velocity one.
@@ -156,24 +196,57 @@ void velocityStarts() {
                   M::Err::ILLEGAL_VALUE, limit));
     // 10 motor turns/s^2 = 600 rpm/s in the MOTOR frame.
     CHECK(L::prepareAccelerationRamp(out, L::RampUse::VELOCITY_START, accel(axis, 10, 1, TURNS_PER_S2, M::CoordinateFrame::MOTOR),
-                                     rpm(axis, 120), axis) && out.effectiveMs == 200);
-    // Box 6..4500 rpm: 6 at 3 rpm/s is 2000 ms; 4500 at 2250 rpm/s is 2000 ms; 5 and 4501 refuse.
+                                     rpm(axis, 120), axis) && out.time.effectiveMs == 200);
+    // Box 6..3000 rpm: 6 at 3 rpm/s is 2000 ms; -3000 at 1500 rpm/s is 2000 ms; 5, 3001, the once
+    // completed 4500 and -4500 refuse.
     CHECK(L::prepareAccelerationRamp(out, L::RampUse::VELOCITY_START, accel(axis, 3), rpm(axis, 6), axis) &&
-          out.effectiveMs == 2000);
-    CHECK(L::prepareAccelerationRamp(out, L::RampUse::VELOCITY_START, accel(axis, 2250), rpm(axis, -4500), axis) &&
-          out.effectiveMs == 2000);
-    const Snapshot<M::PreparedRampTime> kept(out);
+          out.time.effectiveMs == 2000);
+    CHECK(L::prepareAccelerationRamp(out, L::RampUse::VELOCITY_START, accel(axis, 1500), rpm(axis, -3000), axis) &&
+          out.time.effectiveMs == 2000 && L::VELOCITY_RAMP_LAW_MAXIMUM_RPM == 3000);
+    const Snapshot<L::PreparedAccelerationRamp> kept(out);
     CHECK(refused(L::prepareAccelerationRamp(out, L::RampUse::VELOCITY_START, accel(axis, 50), rpm(axis, 5), axis),
                   M::Err::UNSUPPORTED, L::RampError::OUTSIDE_LAW));
-    CHECK(refused(L::prepareAccelerationRamp(out, L::RampUse::VELOCITY_START, accel(axis, 45010), rpm(axis, 4501), axis),
+    CHECK(refused(L::prepareAccelerationRamp(out, L::RampUse::VELOCITY_START, accel(axis, 30010), rpm(axis, 3001), axis),
+                  M::Err::UNSUPPORTED, L::RampError::OUTSIDE_LAW));
+    CHECK(refused(L::prepareAccelerationRamp(out, L::RampUse::VELOCITY_START, accel(axis, 2250), rpm(axis, 4500), axis),
+                  M::Err::UNSUPPORTED, L::RampError::OUTSIDE_LAW));
+    CHECK(refused(L::prepareAccelerationRamp(out, L::RampUse::VELOCITY_START, accel(axis, 2250), rpm(axis, -4500), axis),
                   M::Err::UNSUPPORTED, L::RampError::OUTSIDE_LAW));
     CHECK(kept.unchanged(out));
+    // Ties at the edges round to even: 199.5 and 2000.5 ms give 200 and 2000 (admitted), 2001.5 ms
+    // gives 2002 (refused); 5.5 rpm gives 6 and 3000.5 gives 3000 (admitted), 3001.5 gives 3002
+    // (refused). 120 rpm at 240000/(2T) rpm/s is T ms.
+    const M::Rounding NEAREST = M::Rounding::NEAREST;
+    const M::CoordinateFrame NATIVE = M::CoordinateFrame::NATIVE;
+    CHECK(L::prepareAccelerationRamp(out, L::RampUse::VELOCITY_START, accel(axis, 240000, 399, RPM_PER_S, NATIVE, NEAREST),
+                                     rpm(axis, 120), axis) && out.time.effectiveMs == 200);
+    CHECK(L::prepareAccelerationRamp(out, L::RampUse::VELOCITY_START, accel(axis, 240000, 4001, RPM_PER_S, NATIVE, NEAREST),
+                                     rpm(axis, 120), axis) && out.time.effectiveMs == 2000);
+    CHECK(refused(L::prepareAccelerationRamp(out, L::RampUse::VELOCITY_START,
+                                             accel(axis, 240000, 4003, RPM_PER_S, NATIVE, NEAREST), rpm(axis, 120), axis),
+                  M::Err::ILLEGAL_VALUE, limit));
+    M::VelocityRequest tie = rpm(axis, 11, 2);
+    tie.rounding = NEAREST;
+    tie.maximumQuantizationError = M::Rational(1);
+    CHECK(L::prepareAccelerationRamp(out, L::RampUse::VELOCITY_START, accel(axis, 30), tie, axis) &&
+          out.time.speedNative == 6 && out.time.effectiveMs == 200);
+    tie.value = M::Rational(6001, 2);
+    CHECK(L::prepareAccelerationRamp(out, L::RampUse::VELOCITY_START, accel(axis, 3000), tie, axis) &&
+          out.time.speedNative == 3000 && out.time.effectiveMs == 1000);
+    tie.value = M::Rational(6003, 2);
+    CHECK(refused(L::prepareAccelerationRamp(out, L::RampUse::VELOCITY_START, accel(axis, 3000), tie, axis),
+                  M::Err::UNSUPPORTED, L::RampError::OUTSIDE_LAW));
+    // The record the profile carries: the use, the binding, the speed and the time.
+    CHECK(L::prepareAccelerationRamp(out, L::RampUse::VELOCITY_START, accel(axis, 600), rpm(axis, -120), axis));
+    CHECK(out.source.acceleration && out.source.use == L::RampUse::VELOCITY_START &&
+          M::sameBinding(out.source.binding, axis.binding) && out.source.speedNative == -120 &&
+          out.source.effectiveMs == 200);
     // 2 rpm is inside the move law but outside the velocity law.
     CHECK(refused(L::prepareAccelerationRamp(out, L::RampUse::VELOCITY_START, accel(axis, 20), rpm(axis, 2), axis),
                   M::Err::UNSUPPORTED, L::RampError::OUTSIDE_LAW));
     // 3000 rpm is inside the velocity law but outside the move law.
     CHECK(L::prepareAccelerationRamp(out, L::RampUse::VELOCITY_START, accel(axis, 3000), rpm(axis, 3000), axis) &&
-          out.effectiveMs == 1000);
+          out.time.effectiveMs == 1000);
     CHECK(refused(L::prepareAccelerationRamp(out, L::RampUse::MOVE_START, accel(axis, 3000), rpm(axis, 3000), axis),
                   M::Err::UNSUPPORTED, L::RampError::OUTSIDE_LAW));
 }
@@ -183,9 +256,9 @@ void velocityStarts() {
 void refusals() {
     scenario = "refusals";
     const M::AxisConfig axis = moveAxis();
-    M::PreparedRampTime out;
+    L::PreparedAccelerationRamp out;
     CHECK(L::prepareAccelerationRamp(out, L::RampUse::MOVE_START, accel(axis, 1200), rpm(axis, 120), axis));
-    const Snapshot<M::PreparedRampTime> kept(out);
+    const Snapshot<L::PreparedAccelerationRamp> kept(out);
     M::VelocityRequest broken = rpm(axis, 120);
     broken.configurationGeneration = 0;
     const L::RampUse refusedUses[] = {L::RampUse::MOVE_DECELERATION, L::RampUse::VELOCITY_DECELERATION,
@@ -300,18 +373,18 @@ void recordsNeverWidened() {
     L::MoveEvidence evidence;
     CHECK(L::makeMoveEvidence(evidence, record));
     M::MoveRequest move = MoveRig::moveRequest(1000, 60);
-    M::PreparedRampTime ramp;
+    L::PreparedAccelerationRamp ramp;
     // 60 rpm at 600 rpm/s: 100 ms, inside the law and 1..2000 ms, below the record's 200 ms.
     CHECK(L::prepareAccelerationRamp(ramp, L::RampUse::MOVE_START, accel(axis, 600), move.speed, axis) &&
-          ramp.effectiveMs == 100);
-    L::MoveProfile profile = MoveRig::profile(ramp.effectiveMs, 500);
+          ramp.time.effectiveMs == 100);
+    L::MoveProfile profile = MoveRig::profile(ramp.time.effectiveMs, 500);
     CHECK(refused(L::checkRecordMove(record, evidence, move, profile, axis, nullptr, 0), M::Err::ILLEGAL_VALUE,
                   int32_t(L::RecordCheckError::RAMP)));
     // 120 rpm is inside the law's 2..300 rpm but above the record's 60: the record still refuses.
     move = MoveRig::moveRequest(1000, 120);
     CHECK(L::prepareAccelerationRamp(ramp, L::RampUse::MOVE_START, accel(axis, 600), move.speed, axis) &&
-          ramp.effectiveMs == 200);
-    profile = MoveRig::profile(ramp.effectiveMs, 500);
+          ramp.time.effectiveMs == 200);
+    profile = MoveRig::profile(ramp.time.effectiveMs, 500);
     CHECK(refused(L::checkRecordMove(record, evidence, move, profile, axis, nullptr, 0), M::Err::ILLEGAL_VALUE,
                   int32_t(L::RecordCheckError::SPEED)));
 
@@ -323,9 +396,9 @@ void recordsNeverWidened() {
     M::FiniteVelocityRequest run = VelocityRig::request(30);
     // 30 rpm at 100 rpm/s: 300 ms for both ramps, inside the law, outside the record's 200..200 ms.
     CHECK(L::prepareAccelerationRamp(ramp, L::RampUse::VELOCITY_START, accel(vAxis, 100), run.velocity, vAxis) &&
-          ramp.effectiveMs == 300);
+          ramp.time.effectiveMs == 300);
     L::VelocityProfile vProfile;
-    vProfile.rampUpTimeMs = vProfile.rampDownTimeMs = ramp.effectiveMs;
+    vProfile.rampUpTimeMs = vProfile.rampDownTimeMs = ramp.time.effectiveMs;
     L::ReadContext state;
     CHECK(refused(L::checkRecordVelocity(vRecord, vEvidence, run, vProfile, vAxis, state, VelocityRig::target(), 0,
                                          options),
@@ -363,13 +436,67 @@ void moveTraffic() {
     runMove(MoveRig::profile(100, 200), false);
     // 120 rpm (moveRequest's speed) at 4 load turns/s^2 = 1200 rpm/s: 100 ms, written to 6083 only.
     const M::AxisConfig axis = moveAxis();
-    M::PreparedRampTime ramp;
+    L::PreparedAccelerationRamp ramp;
     CHECK(L::prepareAccelerationRamp(ramp, L::RampUse::MOVE_START,
                                      accel(axis, 4, 1, TURNS_PER_S2, M::CoordinateFrame::LOAD),
                                      MoveRig::moveRequest().speed, axis));
     L::MoveProfile profile = MoveRig::profile(0, 200);
-    profile.rampUpTimeMs = ramp.effectiveMs;
+    profile.rampUpTimeMs = ramp.time.effectiveMs;
+    profile.rampSource = ramp.source;
     runMove(profile, true);
+}
+// Checked placement (stage (c)): an acceleration-form 6083 is accepted only by the move start it was
+// made for, and the context keeps its source; every mismatch refuses before any frame.
+void movePlacement() {
+    scenario = "move placement";
+    const M::AxisConfig axis = moveAxis();
+    const M::MoveRequest move = MoveRig::moveRequest(); // 120 rpm.
+    L::PreparedAccelerationRamp ramp;
+    CHECK(L::prepareAccelerationRamp(ramp, L::RampUse::MOVE_START, accel(axis, 1200), move.speed, axis) &&
+          ramp.time.effectiveMs == 100);
+    L::MoveProfile good = MoveRig::profile(ramp.time.effectiveMs, 200);
+    good.rampSource = ramp.source;
+    {
+        MoveRig::Rig r;
+        r.ready();
+        CHECK(r.request(MoveRig::evidence(), move, good));
+        const L::RampSource& kept = MoveRig::moveOf(r).profile.rampSource;
+        CHECK(kept.acceleration && kept.use == L::RampUse::MOVE_START && kept.effectiveMs == 100 &&
+              kept.speedNative == 120);
+        r.finishMove();
+    }
+    // The velocity start's ramp of the same speed and time.
+    L::PreparedAccelerationRamp velocity;
+    CHECK(L::prepareAccelerationRamp(velocity, L::RampUse::VELOCITY_START, accel(axis, 600), move.speed, axis) &&
+          velocity.time.effectiveMs == 200);
+    L::MoveProfile wrongUse = MoveRig::profile(velocity.time.effectiveMs, 200);
+    wrongUse.rampSource = velocity.source;
+    // The ramp of another speed (60 rpm at 600 rpm/s, also 100 ms) on the 120 rpm move.
+    L::PreparedAccelerationRamp slower;
+    CHECK(L::prepareAccelerationRamp(slower, L::RampUse::MOVE_START, accel(axis, 600), MoveRig::moveRequest(1000, 60).speed,
+                                     axis) && slower.time.effectiveMs == 100);
+    L::MoveProfile wrongSpeed = good;
+    wrongSpeed.rampSource = slower.source;
+    // Another time in 6083 than the one computed.
+    L::MoveProfile wrongTime = good;
+    wrongTime.rampUpTimeMs = 101;
+    // A configuration epoch the axis no longer has.
+    L::MoveProfile stale = good;
+    ++stale.rampSource.binding.configurationGeneration;
+    const L::MoveProfile* cases[] = {&wrongUse, &wrongSpeed, &wrongTime, &stale};
+    for (unsigned i = 0; i < sizeof cases / sizeof cases[0]; ++i) {
+        MoveRig::Rig r;
+        r.ready();
+        MoveRig::refused(r, r.request(MoveRig::evidence(), move, *cases[i]), M::Err::INVALID_CONFIG,
+                         M::MoveError::RAMP_SOURCE);
+        CHECK(r.wire.sentCount == r.startFrame);
+    }
+    // The same milliseconds without a source are an ordinary native move.
+    MoveRig::Rig r;
+    r.ready();
+    CHECK(r.request(MoveRig::evidence(), move, MoveRig::profile(101, 200)));
+    CHECK(!MoveRig::moveOf(r).profile.rampSource.acceleration);
+    r.finishMove();
 }
 void runVelocity(const L::VelocityProfile& profile, bool compare, const M::FiniteVelocityRequest& run) {
     VelocityRig::Rig r;
@@ -402,23 +529,71 @@ void velocityTraffic() {
     runVelocity(native, false, run);
     // 120 rpm at 600 rpm/s: 200 ms, written to both 6083 and 6084.
     const M::AxisConfig axis = VelocityRig::axisConfig();
-    M::PreparedRampTime ramp;
+    L::PreparedAccelerationRamp ramp;
     CHECK(L::prepareAccelerationRamp(ramp, L::RampUse::VELOCITY_START, accel(axis, 600), run.velocity, axis));
     L::VelocityProfile converted;
-    converted.rampUpTimeMs = converted.rampDownTimeMs = ramp.effectiveMs;
+    converted.rampUpTimeMs = converted.rampDownTimeMs = ramp.time.effectiveMs;
+    converted.rampSource = ramp.source;
     runVelocity(converted, true, run);
-    // The law reaches 4500 rpm; the run's own evidence (300 rpm) still refuses 3500 rpm before any frame.
+    // The box reaches 3000 rpm; the run's own evidence (300 rpm) still refuses 3000 rpm before any frame.
     VelocityRig::Rig r;
     r.ready();
-    const M::FiniteVelocityRequest fast = VelocityRig::request(3500);
-    CHECK(L::prepareAccelerationRamp(ramp, L::RampUse::VELOCITY_START, accel(axis, 3500), fast.velocity, axis) &&
-          ramp.effectiveMs == 1000);
+    const M::FiniteVelocityRequest fast = VelocityRig::request(3000);
+    CHECK(L::prepareAccelerationRamp(ramp, L::RampUse::VELOCITY_START, accel(axis, 3000), fast.velocity, axis) &&
+          ramp.time.effectiveMs == 1000);
     L::VelocityProfile wide;
-    wide.rampUpTimeMs = wide.rampDownTimeMs = ramp.effectiveMs;
+    wide.rampUpTimeMs = wide.rampDownTimeMs = ramp.time.effectiveMs;
+    wide.rampSource = ramp.source;
     const unsigned before = r.wire.sentCount;
-    CHECK(!r.session.requestVelocity(r.state, r.identity, VelocityRig::evidence(), fast, wide, r.axis,
-                                     VelocityRig::options(), r.now + VelocityRig::DEADLINE, r.now));
+    const M::Status s = r.session.requestVelocity(r.state, r.identity, VelocityRig::evidence(), fast, wide, r.axis,
+                                                  VelocityRig::options(), r.now + VelocityRig::DEADLINE, r.now);
+    CHECK(!s && s.detail == int32_t(M::VelocityError::RANGE));
     CHECK(r.wire.sentCount == before);
+}
+// Checked placement for a velocity run: both ramps must be the computed time of this rate's start.
+void velocityPlacement() {
+    scenario = "velocity placement";
+    const M::AxisConfig axis = VelocityRig::axisConfig();
+    const M::FiniteVelocityRequest run = VelocityRig::request(); // 120 rpm.
+    L::PreparedAccelerationRamp ramp;
+    CHECK(L::prepareAccelerationRamp(ramp, L::RampUse::VELOCITY_START, accel(axis, 600), run.velocity, axis) &&
+          ramp.time.effectiveMs == 200);
+    L::VelocityProfile good;
+    good.rampUpTimeMs = good.rampDownTimeMs = ramp.time.effectiveMs;
+    good.rampSource = ramp.source;
+    L::PreparedAccelerationRamp move;
+    CHECK(L::prepareAccelerationRamp(move, L::RampUse::MOVE_START, accel(axis, 600), run.velocity, axis) &&
+          move.time.effectiveMs == 200);
+    L::VelocityProfile wrongUse = good;
+    wrongUse.rampSource = move.source;
+    // A separate 6084: only 6083 = 6084 was measured.
+    L::VelocityProfile separate = good;
+    separate.rampDownTimeMs = 300;
+    // The ramp of -120 rpm on the +120 rpm run: the same magnitude and time, another speed.
+    L::PreparedAccelerationRamp reverse;
+    CHECK(L::prepareAccelerationRamp(reverse, L::RampUse::VELOCITY_START, accel(axis, 600), rpm(axis, -120), axis));
+    L::VelocityProfile wrongSpeed = good;
+    wrongSpeed.rampSource = reverse.source;
+    L::VelocityProfile stale = good;
+    ++stale.rampSource.binding.bindingGeneration;
+    const L::VelocityProfile* cases[] = {&wrongUse, &separate, &wrongSpeed, &stale};
+    for (unsigned i = 0; i < sizeof cases / sizeof cases[0]; ++i) {
+        VelocityRig::Rig r;
+        r.ready();
+        const unsigned before = r.wire.sentCount;
+        const M::Status s = r.session.requestVelocity(r.state, r.identity, VelocityRig::evidence(), run, *cases[i],
+                                                      r.axis, VelocityRig::options(), r.now + VelocityRig::DEADLINE,
+                                                      r.now);
+        CHECK(!s && s.code == M::Err::INVALID_CONFIG && s.detail == int32_t(M::VelocityError::RAMP_SOURCE));
+        CHECK(r.wire.sentCount == before && !r.session.velocityActive());
+    }
+    VelocityRig::Rig r;
+    r.ready();
+    CHECK(r.session.requestVelocity(r.state, r.identity, VelocityRig::evidence(), run, good, r.axis,
+                                    VelocityRig::options(), r.now + VelocityRig::DEADLINE, r.now));
+    const L::RampSource& kept = r.session.velocityAction().profile.rampSource;
+    CHECK(kept.acceleration && kept.use == L::RampUse::VELOCITY_START && kept.effectiveMs == 200);
+    r.finish();
 }
 } // namespace
 
@@ -428,7 +603,9 @@ int main() {
     refusals();
     recordsNeverWidened();
     moveTraffic();
+    movePlacement();
     velocityTraffic();
+    velocityPlacement();
     std::printf("acceleration ramp tests passed: %u checks\n", checks);
     return 0;
 }

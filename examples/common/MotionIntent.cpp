@@ -132,7 +132,7 @@ M::Status makeCommandScale(const M::Rational& stepsPerTurn, M::UnitScale& output
 }
 M::Status buildSimpleMove(const SimpleMoveIntent& intent, const M::PositionRequest& position,
                           const M::AxisConfig& axis, bool simpleAbsolute, M::MoveRequest& request,
-                          L::MoveProfile& profile, M::PreparedRampTime* ramp) noexcept {
+                          L::MoveProfile& profile, L::PreparedAccelerationRamp* ramp) noexcept {
     const M::Status configured = M::validateAxisConfig(axis);
     if (!configured)
         return configured;
@@ -164,13 +164,14 @@ M::Status buildSimpleMove(const SimpleMoveIntent& intent, const M::PositionReque
     native.rampDownTimeMs = intent.rampDownMs;
     native.setup = intent.setup;
     // The library converts and gates the acceleration form; this layer only places its result.
-    M::PreparedRampTime converted;
+    L::PreparedAccelerationRamp converted;
     if (intent.accelerationKnown) {
         const M::Status status = L::prepareAccelerationRamp(converted, L::RampUse::MOVE_START,
                                                             intent.acceleration, intent.speed, axis);
         if (!status)
             return status;
-        native.rampUpTimeMs = converted.effectiveMs;
+        native.rampUpTimeMs = converted.time.effectiveMs;
+        native.rampSource = converted.source;
     }
     request = candidate;
     profile = native;

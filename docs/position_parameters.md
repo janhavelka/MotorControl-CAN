@@ -54,21 +54,34 @@ acceleration goes through `LICHUAN_C::prepareAccelerationRamp` with `RampUse::MO
 It prepares the speed from the move's own request and axis and refuses the acceleration form
 unless that whole rpm is inside `MOVE_RAMP_LAW_MINIMUM_RPM..MOVE_RAMP_LAW_MAXIMUM_RPM` (2..300).
 It then converts with `prepareRampTime` ([axis contract](axis_contract.md)) and admits only
-rounded times inside `MOVE_RAMP_LAW_MINIMUM_MS..RAMP_LAW_MAXIMUM_MS` (100..2000 ms). Write the
-result's `effectiveMs` to `MoveProfile::rampUpTimeMs`; `rampDownTimeMs` stays native
-milliseconds. The move preparation, the identity policy and a bound record (`checkRecordMove`)
-then check the profile exactly as a native one, so a unit request widens no limit. For
+rounded times inside `MOVE_RAMP_LAW_MINIMUM_MS..MOVE_RAMP_LAW_MAXIMUM_MS` (100..1000 ms): a
+box inside the bounding box of the measured points. Write the result's `time.effectiveMs` to
+`MoveProfile::rampUpTimeMs` and its `source` to `MoveProfile::rampSource`; `rampDownTimeMs`
+stays native milliseconds. `prepareMoveAbsolute`, `prepareMoveRelative` and `prepareMoveAngle`
+accept that source only for this start: `MOVE_START`, the current binding and configuration
+epoch, the move's effective speed and its time in `rampUpTimeMs`; anything else is refused
+with `MoveError::RAMP_SOURCE` before any work, and the frozen profile keeps it. A move whose
+`6083` came from an acceleration is never replaced: `validateMoveReplacement` and
+`prepareMoveReplacement` refuse it with `MoveError::RAMP_CHANGE` before any frame, because a
+measured change takes the whole ramp time and the kept ramp would silently give another
+acceleration; a replacement request takes native milliseconds only (`RAMP_SOURCE`). Moves
+with native milliseconds are replaced as before. The move preparation, the identity policy and
+a bound record (`checkRecordMove`) then check the profile exactly as a native one, so a unit
+request widens no limit. For
 example, with a 5 mm lead 25 mm/s is 300 rpm, and 250 mm/s^2 (50 turns/s^2, 3000 rpm/s) is
 100 ms.
 
 Basis, MEASURED on drive reports of both CL86-C specimens, one firmware, identity
 `measuredIdentity()` ([ramp analysis](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/bench/20261127-p60-ramp-analysis/README.md)): a move from rest
-reaches its commanded speed in the `6083` time (144 runs, 2..300 rpm, `6083` 100..2000 ms).
-In 66 runs with unequal values `6083` set it, not `6084`. Native milliseconds only, and why:
+reaches its commanded speed in the `6083` time (348 runs in both directions, 143 forward and
+205 reverse, 2..300 rpm and three reverse runs at 600 rpm, `6083` 100..1000 ms and one run at
+2000 ms). In 191 runs with unequal values `6083` set it, not `6084`. A move too short to reach
+its speed never shows the law, so its effective acceleration is inference. Native milliseconds
+only, and why:
 `6084` (deceleration is unresolved: three HALT runs, and arrivals bracketed only by polls about
 1 s apart); replacements (`prepareMoveReplacement`, `RampUse::MOVE_REPLACEMENT`; changes were
-measured on seven velocity-mode runs only); moves above 300 rpm (velocity-mode evidence is not
-position-mode evidence). The reported count rate, 0.99201 x floor(rpm x `2201` / 60), and a
+measured on seven velocity-mode runs only); moves above 300 rpm (three position runs at 600 rpm;
+velocity-mode evidence is not position-mode evidence) and `6083` above 1000 ms (one run). The reported count rate, 0.99201 x floor(rpm x `2201` / 60), and a
 ramp about 1 % longer than written are observations, never compensated
 ([speed units](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/speed_units.md)). The console forms are
 `move ... speed VALUE RATE FRAME accel VALUE ACCEL FRAME configured` and

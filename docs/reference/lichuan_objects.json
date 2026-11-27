@@ -18307,7 +18307,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "U32; documented 0..2000 ms; zero behavior unqualified. EDS default100 not initialization. Measured 2026-11-27 (docs/bench/20261127-p60-ramp-analysis, drive reports, both CL86-C specimens, one firmware): from rest, 6083 is the time to the commanded speed in mode 1 (144 starts, 2..300 rpm, 100..2000 ms; 6084 does not set it) and in mode 3 with 6083=6084 (314 starts, 6..4500 rpm, 200..2000 ms). Changes, deceleration and zero remain unqualified.",
+            "value_policy": "U32; documented 0..2000 ms; zero behavior unqualified. EDS default100 not initialization. Measured 2026-11-27 (docs/bench/20261127-p60-ramp-analysis, drive reports, both CL86-C specimens, one firmware): from rest, 6083 is the time to the commanded speed in mode 1 (348 starts in both directions, 2..300 rpm and three at 600 rpm, 100..1000 ms and one at 2000 ms; 6084 does not set it) and in mode 3 with 6083=6084 (314 starts, 6..4500 rpm, 200..2000 ms). The acceleration form admits moves 2..300 rpm with 100..1000 ms and velocity 6..3000 rpm with 200..2000 ms. Changes, deceleration and zero remain unqualified.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [

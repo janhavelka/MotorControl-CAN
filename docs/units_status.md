@@ -84,7 +84,8 @@ exact acceleration magnitude into the time a change between rest and an already 
 speed takes, in whole milliseconds with its own rounding, an allowance on the resulting
 acceleration error and a caller-supplied range. It is arithmetic only; a profile decides
 where its native ramp means that time (for the Lichuan profile, a start from rest inside
-the measured law, `LICHUAN_C::prepareAccelerationRamp`).
+the measured boxes, `LICHUAN_C::prepareAccelerationRamp`, whose result the move or velocity
+preparation accepts only for the start it was made for).
 
 ## Quantization and approximation
 

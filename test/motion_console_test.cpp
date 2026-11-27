@@ -346,7 +346,7 @@ void accelerationFormsGiveTheNativeTraffic() {
                          &reply) == detailed);
     contains(reply, "\"exact\":[\"120000\",\"1199\"],\"error\":[\"100\",\"1199\",true]");
     contains(reply, "\"effective\":[\"1200\",\"1\"],\"acceleration_error\":[\"1\",\"1\",false]");
-    M::PreparedRampTime expected;
+    L::PreparedAccelerationRamp expected;
     M::AccelerationRequest acceleration;
     acceleration.value = M::Rational(1199);
     acceleration.unit = M::AccelerationUnit(M::PositionUnit::TURNS, M::TimeUnit::MINUTE, M::TimeUnit::SECOND);
@@ -355,7 +355,8 @@ void accelerationFormsGiveTheNativeTraffic() {
     acceleration.maximumAccelerationError = M::Rational(1);
     CHECK(L::prepareAccelerationRamp(expected, L::RampUse::MOVE_START, acceleration, moveRequest(16000, 120).speed,
                                      axisConfig()));
-    CHECK(expected.effectiveMs == 100 && expected.exactMs.numerator == 120000 && expected.exactMs.denominator == 1199);
+    CHECK(expected.time.effectiveMs == 100 && expected.time.exactMs.numerator == 120000 &&
+          expected.time.exactMs.denominator == 1199);
 }
 void accelerationFormRefusalsBeforeTraffic() {
     scenario = "acceleration-form refusals before any frame";
@@ -401,6 +402,41 @@ void accelerationFormRefusalsBeforeTraffic() {
     // A set speed in a unit previews its whole rpm and names its unit and frame.
     contains(r.command("@20 speed 25 turn/min load"), "\"rpm\":\"125\",\"rpm_error\":[\"0\",\"1\",false]");
     contains(r.command("@21 speed"), "\"value\":[\"25\",\"1\"],\"unit\":\"rpm\",\"frame\":\"load\"");
+}
+
+// Stage (c): the text form of ramp_value carries the same fields, and a held acceleration goes
+// stale with its configuration epoch: after stepsperturn the move is refused before any frame.
+void accelerationTextFormAndStaleness() {
+    scenario = "ramp_value text form and a stale held acceleration";
+    {
+        ConsoleRig r;
+        r.prepare();
+        r.command("speed 24 turn/min load");
+        r.command("accel 4 turn/s2 load");
+        r.command("decel 200 ms");
+        const std::string output = r.command("moveby 16000 steps");
+        contains(output, "moveby: operation=1 ramp_up native=100 ms exact=100/1 error=0/1 negative=false rpm=120 "
+                         "acceleration-unit=turn/s2 frame=load effective=4/1 acceleration-error=0/1 negative=false\n");
+        CHECK(output.find("\"type\"") == std::string::npos);
+    }
+    ConsoleRig r;
+    r.prepare();
+    contains(r.command("@1 speed 120 rpm"), "\"ok\":true");
+    contains(r.command("@2 accel 4 turn/s2 load"), "\"ok\":true");
+    contains(r.command("@3 decel 200 ms"), "\"ok\":true");
+    contains(r.command("@4 stepsperturn 6400"), "\"ok\":true");
+    // A fresh speed, a fresh witness and origin: only the held acceleration is of the old epoch.
+    contains(r.command("@5 speed 120 rpm"), "\"ok\":true");
+    r.one.witness = witness(r, r.drive.position);
+    r.one.witness.binding = r.one.coordinates.binding;
+    r.one.witness.referenceGeneration = r.one.coordinates.referenceGeneration;
+    const unsigned first = r.wire.sentCount;
+    const std::string stale = r.command("@6 moveby 16000 steps");
+    contains(stale, "\"ok\":false");
+    contains(stale, "\"detail\":5003"); // AXIS_ERROR_BASE + STALE_GENERATION.
+    CHECK(stale.find("ramp_value") == std::string::npos);
+    CHECK(!r.motion.retained() && r.wire.sentCount == first);
+    contains(r.command("@7 accel"), "\"unit\":\"turn/s2\"");
 }
 
 void simpleIntentNeverUsesDefaults() {
@@ -1172,6 +1208,7 @@ int main(int argc, char** argv) {
     simpleIntentNeverUsesDefaults();
     accelerationFormsGiveTheNativeTraffic();
     accelerationFormRefusalsBeforeTraffic();
+    accelerationTextFormAndStaleness();
     rpmDestinationIsCheckedBeforeAdmission();
     stopNeverReplacesUnknownMotion();
     congestedEscalationKeepsIndependentResults();

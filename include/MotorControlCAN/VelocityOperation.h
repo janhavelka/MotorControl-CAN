@@ -32,6 +32,12 @@ enum class VelocityError : int32_t {
     CAPABILITY,   ///< Required selected-firmware fact has no evidence.
     RATE_BASIS,   ///< Destination is not integer motor turns per minute.
     RANGE,        ///< Requested or effective native rate/ramp is outside its supported range.
+    /** The profile's acceleration-form ramp does not belong to this preparation: another use, a stale
+     * binding or configuration epoch, another rate, or a time different from either ramp. */
+    RAMP_SOURCE,
+    /** The run's ramps came from the acceleration form, so its rate cannot be changed: on the measured
+     * drive a change takes the whole ramp time, which would silently change the acceleration. */
+    RAMP_CHANGE,
     RATE_ERROR_BASE = 5000 ///< Offset for errors from pure exact rate preparation.
 };
 } // namespace MotorControlCAN

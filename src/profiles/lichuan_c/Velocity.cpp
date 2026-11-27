@@ -251,7 +251,19 @@ Status check(const VelocityContext& output, const AxisReservation& r, const Read
         s.detail += int32_t(VelocityError::RATE_ERROR_BASE);
         return s;
     }
-    return rateRange(result.rate, e);
+    s = rateRange(result.rate, e);
+    if (!s)
+        return s;
+    // Acceleration-form ramps hold only for the start they were computed for (prompt 60 stage (c)).
+    const RampSource& source = profile.rampSource;
+    if (source.acceleration &&
+        (source.use != RampUse::VELOCITY_START || !sameBinding(source.binding, r.target.channel.binding) ||
+         source.speedNative != result.rate.effectiveNative ||
+         source.effectiveMs != profile.rampUpTimeMs || source.effectiveMs != profile.rampDownTimeMs))
+        return error(VelocityError::RAMP_SOURCE,
+                     "the acceleration-form ramps are not this run start's: another use, binding, rate "
+                     "or time");
+    return Ok();
 }
 bool downloading(const VelocityContext& c) {
     return c.phase == VelocityPhase::MODE || c.phase == VelocityPhase::PARAMETERS ||
@@ -610,6 +622,11 @@ Status checkChange(const VelocityContext& c, const AxisReservation& live,
     for (unsigned i = 0; i < 5; ++i)
         if (overlaps(&c, sizeof c, inputs[i], sizes[i]))
             return error(VelocityError::OVERLAP, "velocity change overlaps its running context");
+    // A change on the measured drive takes the whole ramp time, so ramps computed from an
+    // acceleration would give another one (prompt 60 stage (c)).
+    if (c.profile.rampSource.acceleration)
+        return error(VelocityError::RAMP_CHANGE,
+                     "the run's ramps came from an acceleration: a rate change would change it");
     Status s = currentContext(c, live, current, now);
     if (!s)
         return s;

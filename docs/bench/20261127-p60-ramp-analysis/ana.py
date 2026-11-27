@@ -4,6 +4,9 @@ Usage (from the repository root): python -I ana.py RECS_JSON ROWS_JSON
 
 Records of one archive (or, for loose captures, of one UTC day) are taken in name order and
 joined while each starts after the previous one ends and less than 120 s later (MCU uptime).
+An SDO event already seen in the same group (same node, object, value and MCU request and reply
+times) is a second dump of the same traffic and is dropped, so a cached re-dump (for example
+20261116-p52/52-ramp-up-cached-dump of trial 52020) is not counted twice.
 For each node the output holds the 6064 position and 606C speed samples, timed at the middle of
 the SDO request/reply pair, and every 6040 or 60FF write with the motion objects' state at that
 moment (last value written or first value read).
@@ -38,8 +41,13 @@ def main(src, out):
     chains = []
     for key in sorted(groups):
         cur = None
+        seen = set()
         for rec in sorted(groups[key], key=lambda r: r['src']):
-            ev = [e for e in rec['ev'] if e[0] in ('w', 'r')]
+            ev = []
+            for e in rec['ev']:
+                if e[0] in ('w', 'r') and tuple(e) not in seen:
+                    seen.add(tuple(e))
+                    ev.append(e)
             if not ev:
                 continue
             t1 = min(e[5] for e in ev)

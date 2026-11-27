@@ -376,6 +376,10 @@ class Correlation(unittest.TestCase):
             with self.subTest(changes=changes):
                 self.assertIsNotNone(console_jsonl.ramp_value_problem(dict(good, **changes)))
         self.assertIsNone(console_jsonl.ramp_value_problem(dict(good, command="velocity", field="ramps")))
+        # A reverse run's speed is signed; its time and acceleration are magnitudes (stage (c)).
+        self.assertIsNone(console_jsonl.ramp_value_problem(dict(good, command="velocity", field="ramps",
+                                                                speed_rpm="-120")))
+        self.assertIsNotNone(console_jsonl.ramp_value_problem(dict(good, effective=["-1200", "1"])))
         self.assertIsNotNone(console_jsonl.ramp_value_problem(dict(good, command="home")))
 
     def test_move_relation_retains_pair_and_rejects_foreign_identity(self):

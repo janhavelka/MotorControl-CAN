@@ -426,11 +426,24 @@ written, inside the measured start-from-rest law, and the repository check refus
 conversion in the console sources. A move's `RAMP` (or a held `accel VALUE ACCEL FRAME`, which
 `configured` moves and `moveby`/`moveto` use) sets 6083 only; 6084 stays the `decel` milliseconds.
 A velocity command's `RAMP` sets both 6083 and 6084 to the one converted time, the measured
-condition. Refused with the library's reason, before any frame: `decel` in acceleration form
-(standalone, or as a move's or velocity command's `RAMP`), a homing ramp in acceleration form,
-moves outside 2..300 rpm and velocity outside 6..4500 rpm in acceleration form, and converted
-times outside 100..2000 ms (moves) or 200..2000 ms (velocity). Replacements and velocity changes
-keep native milliseconds, and the bench routes stay native. After the `accepted` reply, an
+condition. Refused before any frame and before any operation exists, always, with the
+library's reason (`prepareAccelerationRamp` `UNMEASURED`, status `UNSUPPORTED`): `decel` in
+acceleration form, standalone or as a move's `RAMP` ("move deceleration (6084) is unmeasured"),
+a velocity command's `decel` `RAMP` ("velocity ramps were measured only with 6083 = 6084"), a
+homing `RAMP` ("the homing ramp (609A) is unmeasured") and a retarget's `RAMP` ("a move
+replacement in acceleration form is unmeasured"); should the library ever accept one of these,
+the console still refuses with `acceleration_form_unmeasured_for_this_use`. Refused with the
+library's reason as well: a speed outside the box (`OUTSIDE_LAW`, `UNSUPPORTED`: "measured at
+2 to 300 rpm" for moves, "measured at 6 to 3000 rpm" for velocity) and a rounded time outside it
+(`ILLEGAL_VALUE`, detail 5000 plus `LIMIT`: 100..1000 ms for moves, 200..2000 ms for velocity).
+Each box lies inside the bounding box of the measured points; the speed units guide lists the
+unmeasured corners. A `velocity change` takes no `RAMP` (a syntax refusal). On an operation whose
+ramps came from an acceleration, a `RAMP` or a held `accel VALUE ACCEL FRAME`, `move speed`,
+`move ramps`, `move retarget` and `velocity change` are refused before any frame with the
+library's reason (`RAMP_CHANGE`: "a replacement would change it", "a rate change would change
+it"), because a measured change takes the whole ramp time and the kept ramp would silently give
+another acceleration. On an operation with native milliseconds they work as before. The bench
+routes stay native. After the `accepted` reply, an
 operation that used an acceleration prints one `ramp_value` record: `field` `ramp_up` (6083) or
 `ramps` (6083 and 6084), `unit:"ms"`, `native` (the written time), `exact` `[numerator,denominator]`,
 `error` `[numerator,denominator,negative]` (written minus exact), `speed_rpm` (the whole rpm the time
@@ -596,7 +609,7 @@ same owner and reserve the existing stop capacity:
 velocity change ID VALUE RATE FRAME configured [round POLICY ERROR [approx ERROR]]
 move speed ID RPM [immediate|buffered]
 move ramps ID UP_MS DOWN_MS [immediate|buffered]
-move retarget ID [immediate|buffered] absolute VALUE UNIT FRAME RPM configured [round POLICY ERROR [approx ERROR]]
+move retarget ID [immediate|buffered] absolute VALUE UNIT FRAME SPEED configured [round POLICY ERROR [approx ERROR]]
 ```
 
 `ID` identifies the retained active operation, not a CAN node or wire token.

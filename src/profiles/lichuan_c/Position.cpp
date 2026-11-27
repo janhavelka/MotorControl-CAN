@@ -410,6 +410,15 @@ Status checkMove(const MoveContext& output, const AxisReservation& r, const Read
     s = checkSpeed(result.speed);
     if (!s)
         return s;
+    // An acceleration-form 6083 holds only for the start it was computed for (prompt 60 stage (c)).
+    const RampSource& source = profile.rampSource;
+    if (source.acceleration &&
+        (source.use != RampUse::MOVE_START || !sameBinding(source.binding, r.target.channel.binding) ||
+         source.speedNative != result.speed.effectiveNative ||
+         source.effectiveMs != profile.rampUpTimeMs))
+        return moveError(MoveError::RAMP_SOURCE,
+                         "the acceleration-form 6083 is not this move start's: another use, binding, "
+                         "speed or time");
     DriverSettings settings;
     settings.positionSpeedRpm = uint32_t(result.speed.effectiveNative);
     settings.rampUpTimeMs = profile.rampUpTimeMs;
@@ -966,6 +975,14 @@ Status checkReplacement(const MoveContext& output, const MoveContext& original,
             return moveError(MoveError::OVERLAP, "replacement destination overlaps input");
     if (feedback && overlaps(&output, sizeof output, feedback, sizeof *feedback))
         return moveError(MoveError::OVERLAP, "replacement feedback overlaps output");
+    // A change on the measured drive takes the whole ramp time, so an acceleration-form 6083 would
+    // give another acceleration (prompt 60 stage (c)); the change itself takes milliseconds only.
+    if (original.profile.rampSource.acceleration)
+        return moveError(MoveError::RAMP_CHANGE,
+                         "the move's 6083 came from an acceleration: a replacement would change it");
+    if (request.profile.rampSource.acceleration)
+        return moveError(MoveError::RAMP_SOURCE,
+                         "a replacement takes native ramp milliseconds, not an acceleration");
     if (e.gate == MoveChangeGate::CLOSED)
         return moveError(MoveError::CAPABILITY, "in-motion replacement capability is closed",
                          Err::UNSUPPORTED);
@@ -1513,7 +1530,7 @@ Status rampBased(Status status) {
 }
 } // namespace
 
-Status prepareAccelerationRamp(PreparedRampTime& output, RampUse use,
+Status prepareAccelerationRamp(PreparedAccelerationRamp& output, RampUse use,
                                const AccelerationRequest& acceleration, const VelocityRequest& speed,
                                const AxisConfig& axis) noexcept {
     // Every refused use is decided before anything is computed (prompt 60 decision 2).
@@ -1562,12 +1579,25 @@ Status prepareAccelerationRamp(PreparedRampTime& output, RampUse use,
              : (rpm < VELOCITY_RAMP_LAW_MINIMUM_RPM || rpm > VELOCITY_RAMP_LAW_MAXIMUM_RPM))
         return rampError(RampError::OUTSIDE_LAW,
                          move ? "the move ramp law is measured at 2 to 300 rpm; give 6083 in ms"
-                              : "the velocity ramp law is measured at 6 to 4500 rpm; give the ramps in ms",
+                              : "the velocity ramp law is measured at 6 to 3000 rpm; give the ramps in ms",
                          Err::UNSUPPORTED);
-    // Only the measured ramp times are admitted; shorter native times stay in the millisecond form.
-    return rampBased(prepareRampTime(acceleration, prepared, axis,
-                                     move ? MOVE_RAMP_LAW_MINIMUM_MS : VELOCITY_RAMP_LAW_MINIMUM_MS,
-                                     RAMP_LAW_MAXIMUM_MS, output));
+    static_assert(MOVE_RAMP_LAW_MINIMUM_RPM == 2 && MOVE_RAMP_LAW_MAXIMUM_RPM == 300 &&
+                      VELOCITY_RAMP_LAW_MINIMUM_RPM == 6 && VELOCITY_RAMP_LAW_MAXIMUM_RPM == 3000,
+                  "the messages name the boxes");
+    // Only the measured ramp times are admitted; other native times stay in the millisecond form.
+    PreparedRampTime time;
+    s = prepareRampTime(acceleration, prepared, axis,
+                        move ? MOVE_RAMP_LAW_MINIMUM_MS : VELOCITY_RAMP_LAW_MINIMUM_MS,
+                        move ? MOVE_RAMP_LAW_MAXIMUM_MS : VELOCITY_RAMP_LAW_MAXIMUM_MS, time);
+    if (!s)
+        return rampBased(s);
+    output.time = time;
+    output.source.acceleration = true;
+    output.source.use = use;
+    output.source.binding = time.binding;
+    output.source.speedNative = time.speedNative;
+    output.source.effectiveMs = time.effectiveMs;
+    return Ok();
 }
 } // namespace LICHUAN_C
 } // namespace MotorControlCAN

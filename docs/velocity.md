@@ -29,12 +29,22 @@ The rate goes through `prepareVelocityTarget` in any unit the axis scales suppor
 as one acceleration go through `LICHUAN_C::prepareAccelerationRamp` with
 `RampUse::VELOCITY_START`: both `6083` and `6084` take the one converted time, the measured
 condition. The acceleration form needs a whole-rpm magnitude inside
-`VELOCITY_RAMP_LAW_MINIMUM_RPM..VELOCITY_RAMP_LAW_MAXIMUM_RPM` (6..4500) and a rounded time
-inside `VELOCITY_RAMP_LAW_MINIMUM_MS..RAMP_LAW_MAXIMUM_MS` (200..2000 ms). The law's
-4500 rpm widens nothing: `prepareVelocity`'s own range, the evidence's and a bound record's
-(`checkRecordVelocity`) still apply to the profile. A separate deceleration
-(`VELOCITY_DECELERATION`) and rate changes (`VELOCITY_CHANGE`, `prepareVelocityChange`) keep
-native milliseconds. `ProbeMotion::requestVelocity` takes the converted profile for one run;
+`VELOCITY_RAMP_LAW_MINIMUM_RPM..VELOCITY_RAMP_LAW_MAXIMUM_RPM` (6..3000) and a rounded time
+inside `VELOCITY_RAMP_LAW_MINIMUM_MS..VELOCITY_RAMP_LAW_MAXIMUM_MS` (200..2000 ms): a box
+inside the bounding box of the measured points, in which runs at 6 to 10 rpm were measured
+only with 200 ms ramps, at 60 to 300 rpm only with 1000 ms and above 1000 rpm almost only
+with 2000 ms. The box widens nothing: `prepareVelocity`'s own range, the evidence's and a
+bound record's (`checkRecordVelocity`) still apply to the profile. Write the result's
+`time.effectiveMs` to both ramps and its `source` to `VelocityProfile::rampSource`.
+`prepareVelocity` accepts that source only for this start: `VELOCITY_START`, the current
+binding and configuration epoch, the run's effective rate and the time in both ramps;
+anything else is refused with `VelocityError::RAMP_SOURCE` before any work, and the frozen
+profile keeps it. A separate deceleration (`VELOCITY_DECELERATION`) keeps native
+milliseconds. A run whose ramps came from the acceleration form admits no rate change:
+`validateVelocityChange` and `prepareVelocityChange` refuse it with
+`VelocityError::RAMP_CHANGE` before any frame, because a measured change takes the whole ramp
+time and the unchanged ramp would silently give another acceleration. A run with native
+milliseconds changes as before. `ProbeMotion::requestVelocity` takes the converted profile for one run;
 the console form is `velocity VALUE RATE FRAME DURATION_MS accel VALUE ACCEL FRAME configured
 normal|fast` ([CLI contract](cli_contract.md)). For example 120 rpm at 600 rpm/s is 200 ms for
 both ramps.
@@ -43,7 +53,8 @@ Basis, MEASURED on drive reports of both CL86-C specimens, one firmware
 ([ramp analysis](https://github.com/janhavelka/MotorControl-CAN/blob/main/docs/bench/20261127-p60-ramp-analysis/README.md)): a start from rest reaches the
 rate in the ramp time after a start latency of about 0.465 s from word `000F` (314 runs,
 6..4500 rpm, both signs, 200..2000 ms, always `6083` = `6084`, so which object sets it is not
-shown). The 0.99201 count rate and the ramp about 1 % longer than written are observations,
+shown). Above 3000 rpm there are 23 runs; 4500 rpm completed once (node 2, 2000 ms), and
+4000 rpm faulted FF05 with 200 ms ramps on 2026-11-13, so the box stops at 3000 rpm. The 0.99201 count rate and the ramp about 1 % longer than written are observations,
 never compensated ([speed units](speed_units.md)).
 
 `VelocityEvidence` is closed by default. Opening it asserts an actual retained

@@ -141,8 +141,9 @@ where v is the commanded speed of that move. A fixed ramp time therefore gives a
 
 **Correction note (2026-11-27, prompt 60).** The text above is kept as written on 2026-11-13. A later
 [ramp analysis](../bench/20261127-p60-ramp-analysis/README.md) of every retained record that commands motion measured
-the start-from-rest reading: position starts (2 to 300 rpm, `6083` 100 to 2000 ms, 144 runs; `6083` sets the ramp,
-not `6084`) and velocity starts (6 to 4500 rpm, 200 to 2000 ms, 314 runs, always `6083` = `6084`). The formula is
+the start-from-rest reading: position starts (348 runs in both directions, 2 to 300 rpm and three at 600 rpm,
+`6083` 100 to 1000 ms and one run at 2000 ms; `6083` sets the ramp, not `6084`) and velocity starts (6 to 4500 rpm,
+200 to 2000 ms, 314 runs, always `6083` = `6084`). The formula is
 wrong for a change between two nonzero speeds when v is read as the commanded speed: in seven velocity-mode changes
 (6 to 60 rpm) every change took the whole ramp time, so a = |Δv| / t. Deceleration (three HALT runs) and the homing
 ramp remain unresolved. The [speed units guide](../speed_units.md) carries the corrected statement.

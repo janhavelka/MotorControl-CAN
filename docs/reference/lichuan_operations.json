@@ -585,7 +585,7 @@
           "ctest": "acceleration_ramp"
         }
       ],
-      "api_only_reason": "The console composes native target preparation, admission, transmission, observation, withdrawal and terminal phases through AxisSession; these phases are not independently executable commands. prepareAccelerationRamp converts an acceleration into the native 6083 (and a velocity run's 6083 = 6084) of a start from rest inside the measured law; the move and velocity commands' accel forms reach it.",
+      "api_only_reason": "The console composes native target preparation, admission, transmission, observation, withdrawal and terminal phases through AxisSession; these phases are not independently executable commands. prepareAccelerationRamp converts an acceleration into the native 6083 (and a velocity run's 6083 = 6084) of a start from rest inside the measured boxes, and the move and velocity preparations accept its source only for that start; the move and velocity commands' accel forms reach it.",
       "console": [
         {
           "command": "move",

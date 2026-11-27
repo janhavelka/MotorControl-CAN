@@ -77,7 +77,8 @@ MotorControlCAN::Status makeCommandScale(const MotorControlCAN::Rational& stepsP
  * false requires an unwrapped relative request with its supported basis. No basis fallback occurs.
  * @param[out] request Original exact position and speed; unchanged on failure.
  * @param[out] profile Native ramp/setup choices; unchanged on failure. With an acceleration form,
- * rampUpTimeMs is prepareAccelerationRamp's effectiveMs for this speed.
+ * rampUpTimeMs is prepareAccelerationRamp's time.effectiveMs for this speed and rampSource its source,
+ * which the move preparation checks.
  * @param[out] ramp Optional conversion evidence, written only when the acceleration form was used.
  * @return Local preflight only; no work is reserved or transmitted. */
 MotorControlCAN::Status buildSimpleMove(const SimpleMoveIntent& intent,
@@ -85,7 +86,8 @@ MotorControlCAN::Status buildSimpleMove(const SimpleMoveIntent& intent,
                                         const MotorControlCAN::AxisConfig& axis,
                                         bool simpleAbsolute, MotorControlCAN::MoveRequest& request,
                                         MotorControlCAN::LICHUAN_C::MoveProfile& profile,
-                                        MotorControlCAN::PreparedRampTime* ramp = nullptr) noexcept;
+                                        MotorControlCAN::LICHUAN_C::PreparedAccelerationRamp* ramp =
+                                            nullptr) noexcept;
 /** Validate finite velocity and retain the exact original request. The native lifecycle performs
  * its own single final preparation; a preview is never fed back as a new rounded request.
  * @param[in] velocity Exact signed rate; native frame means the configured native-rate dimension.

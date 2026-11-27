@@ -201,7 +201,7 @@ void velocityAccelerationForm() {
                               "@4 velocity 5 rpm native 120 accel 50 rpm/s native configured normal",
                               "@5 velocity 120 rpm native 120 accel 600 rpm/s native normal configured"};
     const char* reasons[] = {"only with 6083 = 6084", "\"status\":\"ILLEGAL_VALUE\"",
-                             "measured at 6 to 4500 rpm", "\"ok\":false"};
+                             "measured at 6 to 3000 rpm", "\"ok\":false"};
     for (unsigned i = 0; i < 4; ++i) {
         const size_t start = refused.bytes.output.size();
         refused.line(commands[i]);
@@ -215,8 +215,44 @@ void velocityAccelerationForm() {
     }
 }
 
+// Stage (c): a run whose ramps came from an acceleration admits no rate change, with the library's
+// reason and no 60FF write; a change line with an acceleration clause is refused as syntax. A reverse
+// run's ramp_value carries its signed rpm and the magnitude's time.
+void accelerationFormRunAdmitsNoChange() {
+    ConsoleRig r;
+    r.startFrame = r.wire.sentCount;
+    r.line("@1 velocity 120 rpm native 120 accel 600 rpm/s native configured normal");
+    for (unsigned n = 0; n < 200 && !r.session.velocityAction().runningObserved; ++n)
+        r.tick();
+    CHECK(r.session.velocityAction().runningObserved && r.session.velocityAction().profile.rampSource.acceleration);
+    const size_t start = r.bytes.output.size();
+    r.line("@2 velocity change 1 180 rpm native configured");
+    CHECK(!r.session.velocityAction().change.present);
+    r.line("@3 velocity change 1 180 rpm native configured accel 600 rpm/s native");
+    CHECK(!r.session.velocityAction().change.present);
+    r.finish();
+    const std::string output = r.bytes.output.substr(start);
+    contains(output, "\"id\":2,\"command\":\"velocity\",\"ok\":false");
+    contains(output, "a rate change would change it");
+    contains(output, "\"id\":3,\"command\":\"velocity\",\"ok\":false");
+    CHECK(r.writes(0x60ff, 120) == 1 && !r.writes(0x60ff, 180));
+    CHECK(r.writes(0x6083, 200) == 1 && r.writes(0x6084, 200) == 1);
+
+    ConsoleRig reverse(false);
+    CHECK(reverse.motion.setVelocityPrerequisites(reverse.state, reverse.identity, evidence(true), profile(),
+                                                  options()));
+    std::string record;
+    velocityFrames(reverse, "@1 velocity -120 rpm native 120 accel 600 rpm/s native configured normal", record);
+    contains(record, "\"type\":\"ramp_value\",\"id\":1,\"command\":\"velocity\",\"operation_id\":1,"
+                     "\"field\":\"ramps\",\"unit\":\"ms\",\"native\":\"200\",\"exact\":[\"200\",\"1\"],"
+                     "\"error\":[\"0\",\"1\",false],\"speed_rpm\":\"-120\",\"acceleration_unit\":\"rpm/s\","
+                     "\"frame\":\"native\",\"effective\":[\"600\",\"1\"]");
+    CHECK(reverse.writes(0x6083, 200) == 1 && reverse.writes(0x6084, 200) == 1);
+}
+
 int main() {
     explicitVelocityChangeAndRetention();
+    accelerationFormRunAdmitsNoChange();
     approximateChangePublishesItsBound();
     closedAndInvalidChangesSendNothing();
     velocityAccelerationForm();

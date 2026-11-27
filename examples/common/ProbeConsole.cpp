@@ -146,7 +146,7 @@ const ConsoleCommand commands[] = {
      nullptr, 42},
     {"move",
      "move {absolute|relative POS MOTION|angle POS PATH TIE MOTION|speed ID RPM [EDGE]|ramps ID UP_MS "
-     "DOWN_MS [EDGE]|retarget ID [EDGE] absolute POS RPM configured [OPTS]}",
+     "DOWN_MS [EDGE]|retarget ID [EDGE] absolute POS SPEED configured [OPTS]}",
      "ProbeMotion::requestMove/requestMoveReplacement/AxisSession",
      "actual axis; explicit ramps, firmware and reference evidence", E::DEVICE_ACTION,
      C::ASYNCHRONOUS, "POS=VALUE UNIT FRAME; MOTION=SPEED [RAMP] configured [OPTS]; SPEED=RPM|speed VALUE "

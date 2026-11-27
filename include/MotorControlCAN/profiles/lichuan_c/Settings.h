@@ -22,6 +22,45 @@ enum class SettingsModel : uint8_t {
     CL86_C,  ///< EN86/ZH86 documented closed-loop 86C scope; firmware qualification separate.
     OL86_C   ///< EN86/ZH86 documented open-loop 86C scope; firmware qualification separate.
 };
+/** Which native ramp an acceleration-form request would set (prepareAccelerationRamp). On the CL86-C
+ * the ramp time is MEASURED only for starts from rest (docs/bench/20261127-p60-ramp-analysis, drive
+ * reports of both specimens, one firmware, measuredIdentity()); every other use is refused before any
+ * work, and its native millisecond form stays available. */
+enum class RampUse : uint8_t {
+    /** 6083 of a finite move from rest (absolute, relative or angle): the time from rest to the move
+     * speed, 6083 governing it, not 6084. The acceleration form admits 2 to 300 rpm with 6083 100 to
+     * 1000 ms (MOVE_RAMP_LAW_*). Write PreparedAccelerationRamp::time.effectiveMs to
+     * MoveProfile::rampUpTimeMs and its source to MoveProfile::rampSource; rampDownTimeMs stays native. */
+    MOVE_START,
+    /** 6083 and 6084 of a velocity run from rest, one value written to both: the time from rest to the
+     * rate, measured always with 6083 = 6084. The acceleration form admits 6 to 3000 rpm with 200 to
+     * 2000 ms (VELOCITY_RAMP_LAW_*). Write PreparedAccelerationRamp::time.effectiveMs to both
+     * VelocityProfile ramps and its source to VelocityProfile::rampSource. */
+    VELOCITY_START,
+    MOVE_DECELERATION,     ///< 6084 of a move. Refused: deceleration is unresolved (three HALT runs).
+    VELOCITY_DECELERATION, ///< A separate velocity 6084. Refused: only 6083 = 6084 was measured.
+    /** A change between two nonzero rates (prepareVelocityChange). Refused: seven runs only. */
+    VELOCITY_CHANGE,
+    MOVE_REPLACEMENT, ///< The ramps of prepareMoveReplacement. Refused: changes are unmeasured as a law.
+    HOMING            ///< 609A of a home. Refused: no retained record writes 609A.
+};
+/** Where the ramp times of a MoveProfile or VelocityProfile came from. The default, acceleration
+ * false, is the native millisecond form, checked as before. An acceleration-form ramp
+ * (PreparedAccelerationRamp::source) is accepted only by the preparation it was made for:
+ * prepareMoveAbsolute, prepareMoveRelative or prepareMoveAngle for MOVE_START, prepareVelocity for
+ * VELOCITY_START, with this binding and configuration epoch still current, this speed equal to the
+ * request's effective native speed and this time in each ramp it fills (6083 for a move, 6083 and
+ * 6084 for a velocity run). Anything else is refused before any work (RAMP_SOURCE). The prepared
+ * context's frozen profile keeps it, and a velocity change or move replacement of such a run is
+ * refused (RAMP_CHANGE): on the measured drive a change takes the whole ramp time, which would
+ * silently change the acceleration. A run whose ramps are native milliseconds is unaffected. */
+struct RampSource {
+    bool acceleration = false;         ///< The ramps came from the acceleration form.
+    RampUse use = RampUse::MOVE_START; ///< The use the ramp was prepared for.
+    Binding binding;                   ///< Route and configuration epoch it was prepared under.
+    int64_t speedNative = 0;           ///< Effective native speed it was computed for, motor rpm.
+    uint32_t effectiveMs = 0;          ///< The native ramp time, ms.
+};
 /** Actual continuous exclusion of one axis, held by the sole application owner.
  * It records exclusion that already exists; it is not a permission a profile can
  * construct, and it is never carried on the wire. The owner establishes it before

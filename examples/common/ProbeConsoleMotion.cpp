@@ -286,6 +286,20 @@ const char* outcomeName(M::ActionOutcome outcome) {
     const unsigned n = static_cast<unsigned>(outcome);
     return n < sizeof names / sizeof names[0] ? names[n] : "UNKNOWN";
 }
+// The acceleration form of a use the library does not convert: refused here whatever the library
+// returns, with its reason when it gives one (prompt 60 stage (c)), so no Operation is ever built
+// from it. Off dispatchMotion's chain, like the conversion.
+#if defined(__GNUC__) || defined(__clang__)
+__attribute__((noinline))
+#elif defined(_MSC_VER)
+__declspec(noinline)
+#endif
+M::Status refuseRamp(L::RampUse use, const M::AccelerationRequest& ramp, const M::VelocityRequest& speed,
+                     const M::AxisConfig& axis) {
+    L::PreparedAccelerationRamp unused;
+    const M::Status status = L::prepareAccelerationRamp(unused, use, ramp, speed, axis);
+    return status ? M::Status(M::Err::UNSUPPORTED, 0, "acceleration_form_unmeasured_for_this_use") : status;
+}
 // Keep replacement-only parsing storage off ordinary move and home dispatch chains.
 // Inlining it into dispatchMotion exceeded the measured 6144-byte Xtensa chain budget of the
 // 12288-byte stack (2026-11-17 the stack is 16384 and the budget 8192); it stays off that chain.
@@ -350,11 +364,8 @@ M::Status requestReplacement(const ConsoleLine& line, const SimpleMoveIntent& in
                                ramp, policy ? 3 : 2) &&
                      !request.request.position.relative && !request.request.position.wrapped;
             request.fields = 3;
-            if (parsed && rampKind) {
-                M::PreparedRampTime unused;
-                return L::prepareAccelerationRamp(unused, L::RampUse::MOVE_REPLACEMENT, ramp,
-                                                  request.request.speed, axis);
-            }
+            if (parsed && rampKind)
+                return refuseRamp(L::RampUse::MOVE_REPLACEMENT, ramp, request.request.speed, axis);
         }
         if (parsed)
             return motion.requestMoveReplacement(originalOperation, request, now);
@@ -583,8 +594,8 @@ void ProbeConsole::dispatchMotion(const ConsoleLine& line, uint64_t now) noexcep
             return;
         }
         const M::Status status = up ? setSimpleAcceleration(intent, request, motion->axisConfig())
-                                    : L::prepareAccelerationRamp(ramp_, L::RampUse::MOVE_DECELERATION, request,
-                                                                 intent.speed, motion->axisConfig());
+                                    : refuseRamp(L::RampUse::MOVE_DECELERATION, request, intent.speed,
+                                                 motion->axisConfig());
         if (!status) {
             reject(status);
             return;
@@ -759,15 +770,17 @@ void ProbeConsole::dispatchMotion(const ConsoleLine& line, uint64_t now) noexcep
                     if (status && request.durationUs > uint64_t(INT64_MAX) - cutoff)
                         status = syntax;
                     // Both ramps from one acceleration (6083 = 6084, the measured condition); a separate
-                    // deceleration is the library's refusal.
+                    // deceleration is always refused, with the library's reason.
                     L::VelocityProfile profile;
-                    if (status && rampKind) {
-                        status = L::prepareAccelerationRamp(ramp_, rampKind == 1 ? L::RampUse::VELOCITY_START
-                                                                                 : L::RampUse::VELOCITY_DECELERATION,
-                                                            ramp, rate, axis);
-                        profile.rampUpTimeMs = profile.rampDownTimeMs = ramp_.effectiveMs;
-                        if (status)
+                    if (status && rampKind == 2) {
+                        status = refuseRamp(L::RampUse::VELOCITY_DECELERATION, ramp, rate, axis);
+                    } else if (status && rampKind) {
+                        status = L::prepareAccelerationRamp(ramp_, L::RampUse::VELOCITY_START, ramp, rate, axis);
+                        if (status) {
+                            profile.rampUpTimeMs = profile.rampDownTimeMs = ramp_.time.effectiveMs;
+                            profile.rampSource = ramp_.source;
                             rampField_ = 2;
+                        }
                     }
                     if (status) {
                         cutoff += request.durationUs;
@@ -792,8 +805,7 @@ void ProbeConsole::dispatchMotion(const ConsoleLine& line, uint64_t now) noexcep
                 if (speeds && ramp <= 2000 && eq(line.token(next), "zero") && next + 1 == line.count) {
                     request.method = static_cast<L::HomingMethod>(method);
                     request.rampTimeMs = static_cast<uint32_t>(ramp);
-                    status = rampKind ? L::prepareAccelerationRamp(ramp_, L::RampUse::HOMING, acceleration,
-                                                                   request.searchSpeed, axis)
+                    status = rampKind ? refuseRamp(L::RampUse::HOMING, acceleration, request.searchSpeed, axis)
                                       : motion->requestHome(request, now, cutoff);
                 }
             } else if (stop) {
@@ -914,11 +926,13 @@ M::Status ProbeConsole::moveRamp(uint8_t kind, const M::AccelerationRequest& acc
                                  L::MoveProfile& profile) noexcept {
     if (!kind)
         return M::Ok();
-    const M::Status status = L::prepareAccelerationRamp(
-        ramp_, kind == 1 ? L::RampUse::MOVE_START : L::RampUse::MOVE_DECELERATION, acceleration, speed, axis);
+    if (kind != 1)
+        return refuseRamp(L::RampUse::MOVE_DECELERATION, acceleration, speed, axis);
+    const M::Status status = L::prepareAccelerationRamp(ramp_, L::RampUse::MOVE_START, acceleration, speed, axis);
     if (!status)
         return status;
-    profile.rampUpTimeMs = ramp_.effectiveMs; // 6083 only; 6084 stays the intent's milliseconds.
+    profile.rampUpTimeMs = ramp_.time.effectiveMs; // 6083 only; 6084 stays the intent's milliseconds.
+    profile.rampSource = ramp_.source;
     rampField_ = 1;
     return M::Ok();
 }
@@ -928,7 +942,7 @@ __attribute__((noinline))
 __declspec(noinline)
 #endif
 void ProbeConsole::rampAccepted(const Operation& op) noexcept {
-    const M::PreparedRampTime& r = ramp_;
+    const M::PreparedRampTime& r = ramp_.time;
     char unit[16];
     accelerationName(r.requested.unit, unit);
     const int64_t error = r.accelerationError.numerator;

@@ -321,8 +321,8 @@ class ProbeConsole {
     SimpleMoveIntent intent_;
     /** The last acceleration-form conversion (prepareAccelerationRamp), printed as one ramp_value record
      * after the accepted reply of the operation that used it. rampField_: 0 none, 1 6083 of a move, 2 both
-     * ramps of a velocity run. */
-    MotorControlCAN::PreparedRampTime ramp_;
+     * ramps of a velocity run. Its source goes into the profile with the time. */
+    MotorControlCAN::LICHUAN_C::PreparedAccelerationRamp ramp_;
     uint8_t rampField_ = 0;
     uint8_t debug_ = 0;
     // Only the fields the console publishes. Keeping Completion out saves scarce S2 RAM.

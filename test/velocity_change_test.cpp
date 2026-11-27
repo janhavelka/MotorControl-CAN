@@ -30,7 +30,8 @@ struct Rig {
     uint64_t now = 0;
     unsigned served = 0;
     bool applyChange = true;
-    Rig(int64_t initialRate = 120, int8_t polarity = 1) : owner(services, wire.plumbing(), 73) {
+    Rig(int64_t initialRate = 120, int8_t polarity = 1, const L::VelocityProfile& ramps = profile())
+        : owner(services, wire.plumbing(), 73) {
         CHECK(services.configure(0, current.channel, true, true));
         C::NetworkRoute network;
         network.binding = current.channel.binding;
@@ -60,7 +61,7 @@ struct Rig {
             initialRequest.velocity.value = M::Rational(-initialRate);
         }
         CHECK(L::prepareVelocity(run, live, current, initial, identity, evidence(),
-                                  initialRequest, profile(), axis, 3, now,
+                                  initialRequest, ramps, axis, 3, now,
                                   now + DEADLINE, options()));
         proof.gate = L::VelocityGate::MEASURED;
         proof.record = 5201;
@@ -367,9 +368,39 @@ void changeRecordOfAnotherFirmwareOnlyFlags() {
         CHECK(!r.run.identity.firmwareUnqualified);
     }
 }
+// Prompt 60 stage (c): a run whose ramps came from the acceleration form admits no change, before
+// any frame, because the measured change takes the whole ramp time; a native run still changes.
+void accelerationFormRunAdmitsNoChange() {
+    const M::AxisConfig axis = axisConfig();
+    M::AccelerationRequest a;
+    a.configurationGeneration = axis.binding.configurationGeneration;
+    a.value = M::Rational(600); // 120 rpm at 600 rpm/s: 200 ms.
+    a.unit = M::AccelerationUnit(M::PositionUnit::TURNS, M::TimeUnit::MINUTE, M::TimeUnit::SECOND);
+    a.frame = M::CoordinateFrame::NATIVE;
+    a.maximumAccelerationError = M::Rational(1);
+    L::PreparedAccelerationRamp ramp;
+    CHECK(L::prepareAccelerationRamp(ramp, L::RampUse::VELOCITY_START, a, request(120).velocity, axis));
+    L::VelocityProfile converted;
+    converted.rampUpTimeMs = converted.rampDownTimeMs = ramp.time.effectiveMs;
+    converted.rampSource = ramp.source;
+    Rig r(120, 1, converted);
+    CHECK(r.run.profile.rampSource.acceleration);
+    r.running();
+    const M::Status s = L::validateVelocityChange(r.run, r.live, r.current, r.axis, r.replacement, r.proof, r.now);
+    CHECK(!s && s.code == M::Err::INVALID_CONFIG && s.detail == int32_t(M::VelocityError::RAMP_CHANGE));
+    r.reject();
+    CHECK(r.changes() == 1);
+    // The same ramp times as native milliseconds change as before.
+    L::VelocityProfile native;
+    native.rampUpTimeMs = native.rampDownTimeMs = ramp.time.effectiveMs;
+    Rig n(120, 1, native);
+    n.running();
+    CHECK(L::validateVelocityChange(n.run, n.live, n.current, n.axis, n.replacement, n.proof, n.now));
+}
 } // namespace
 
 int main() {
+    accelerationFormRunAdmitsNoChange();
     changedRateUsesOneWriteAndOriginalStop();
     refusalsAreAtomic();
     changeRecordOfAnotherFirmwareOnlyFlags();

@@ -28,14 +28,29 @@ struct Fixture {
     L::MoveReplacementEvidence evidence;
     L::MoveReplacementRequest request;
     // flagged: the original's record names another firmware (1009), so the original runs firmware unqualified.
-    explicit Fixture(bool flagged = false) {
+    // acceleration: the original's 6083 comes from 300 rpm/s (prepareAccelerationRamp, 100 ms).
+    explicit Fixture(bool flagged = false, bool acceleration = false) {
         rig.ready();
         rig.drive.travelReads = 100;
         rig.drive.velocity = 30;
         L::MoveEvidence first = MoveRig::evidence();
         if (flagged)
             ++first.firmware.hardwareVersion;
-        CHECK(rig.request(first, moveRequest(TARGET, 30)));
+        L::MoveProfile ramps = profile();
+        if (acceleration) {
+            const M::AxisConfig axis = axisConfig();
+            M::AccelerationRequest a;
+            a.configurationGeneration = axis.binding.configurationGeneration;
+            a.value = M::Rational(300);
+            a.unit = M::AccelerationUnit(M::PositionUnit::TURNS, M::TimeUnit::MINUTE, M::TimeUnit::SECOND);
+            a.frame = M::CoordinateFrame::NATIVE;
+            a.maximumAccelerationError = M::Rational(1);
+            L::PreparedAccelerationRamp ramp;
+            CHECK(L::prepareAccelerationRamp(ramp, L::RampUse::MOVE_START, a, moveRequest(TARGET, 30).speed, axis));
+            ramps.rampUpTimeMs = ramp.time.effectiveMs;
+            ramps.rampSource = ramp.source;
+        }
+        CHECK(rig.request(first, moveRequest(TARGET, 30), ramps));
         for (unsigned i = 0; i < 300 && !rig.a.moveAction().latest.present; ++i)
             rig.step();
         CHECK(rig.a.moveAction().phase == L::MovePhase::WAITING &&
@@ -290,8 +305,32 @@ void qualificationAndValidationAreAtomic() {
                                       f.original.operation + 1, f.rig.now));
     output.unchanged(f.changed);
 }
+// Prompt 60 stage (c): an original whose 6083 came from the acceleration form is never replaced,
+// before any frame (a change takes the whole ramp time); a replacement itself takes milliseconds.
+void accelerationFormOriginalAdmitsNoReplacement() {
+    scenario = "acceleration-form original";
+    Fixture f(false, true);
+    CHECK(f.original.profile.rampSource.acceleration && f.original.profile.rampUpTimeMs == 100);
+    const Saved<L::MoveContext> unchanged(f.changed);
+    const unsigned sent = f.rig.wire.sentCount;
+    M::Status s = L::validateMoveReplacement(f.changed, f.original, f.stored, f.live, f.current, f.evidence,
+                                             f.request, f.rig.one.coordinates, nullptr, f.original.operation + 1,
+                                             f.rig.now);
+    CHECK(!s && s.code == M::Err::INVALID_CONFIG && s.detail == int32_t(M::MoveError::RAMP_CHANGE));
+    s = f.prepare();
+    CHECK(!s && s.detail == int32_t(M::MoveError::RAMP_CHANGE));
+    unchanged.unchanged(f.changed);
+    CHECK(f.rig.wire.sentCount == sent);
+    // A native original with an acceleration-form request profile.
+    Fixture g;
+    g.request.profile.rampSource = f.original.profile.rampSource;
+    s = g.prepare();
+    CHECK(!s && s.code == M::Err::INVALID_CONFIG && s.detail == int32_t(M::MoveError::RAMP_SOURCE));
+}
 } // namespace
+
 int main() {
+    accelerationFormOriginalAdmitsNoReplacement();
     qualificationAndValidationAreAtomic();
     experimentModes();
     refusals();

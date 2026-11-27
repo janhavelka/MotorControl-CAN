@@ -133,6 +133,11 @@ struct VelocityChangeEvidence {
 struct VelocityProfile {
     uint32_t rampUpTimeMs = 0;   ///< Reviewed positive 6083 time, at most 2000 ms.
     uint32_t rampDownTimeMs = 0; ///< Reviewed positive 6084 time, at most 2000 ms.
+    /** Native milliseconds by default. VELOCITY_START acceleration-form ramps carry their
+     * PreparedAccelerationRamp::source here, with both times its time.effectiveMs; prepareVelocity
+     * checks it (VelocityError::RAMP_SOURCE), and a change of such a run is refused
+     * (VelocityError::RAMP_CHANGE). */
+    RampSource rampSource;
 };
 /** Caller scheduling policy; no default is a manufacturer timeout or usable configuration. */
 struct VelocityOptions {
@@ -338,7 +343,10 @@ struct VelocityContext {
  * @param[in] identity Current identity read of this boot (checkIdentity). Product fields that differ
  * from evidence.firmware refuse with UNSUPPORTED before any TX; firmware fields that differ admit the
  * run and set output.identity.firmwareUnqualified. @param[in] evidence Explicit firmware evidence.
- * @param[in] request Signed rate and preparation-time duration. @param[in] profile Native ramps.
+ * @param[in] request Signed rate and preparation-time duration. @param[in] profile Native ramps. An
+ * acceleration-form rampSource must be VELOCITY_START, under the reservation's current binding, for
+ * the rate's effective rpm and with both ramp times its effectiveMs, or the run is refused with
+ * RAMP_SOURCE before any work; the frozen profile keeps it.
  * @param[in] axis Exact conversion facts. @param[in] operation Nonzero identity.
  * @param[in] nowUs Preparation time. @param[in] deadlineUs Fixed cutoff.
  * @param[in] options Caller budgets. @return Local status, no work on refusal. */
@@ -367,7 +375,10 @@ Status validateVelocity(const VelocityContext& output, const AxisReservation& re
  * and full write plus seven-field observation budgets before the original stopDueUs. Initial and
  * replacement rates must be positive integer motor rpm in 1..3000 and both evidence ranges. The
  * caller must own the context and have no admitted transaction; an owner must serialize this check
- * with admission. No ramp or deadline is changed. Inputs overlapping context are refused.
+ * with admission. No ramp or deadline is changed. Inputs overlapping context are refused. A run whose
+ * ramps came from the acceleration form (profile.rampSource) is refused with RAMP_CHANGE before any
+ * work: on the measured drive a change takes the whole ramp time, so the unchanged ramp would
+ * silently give another acceleration. A run with native millisecond ramps is unaffected.
  * @param[in] context Active run, unchanged. @param[in] live Current reservation.
  * @param[in] current Current wire target. @param[in] axis Current conversion facts.
  * @param[in] request Exact engineering replacement rate. @param[in] evidence Explicit change record.
