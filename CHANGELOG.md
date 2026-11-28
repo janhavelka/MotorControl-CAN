@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+### Node setting slice b2 (prompt 61, stage (b), 2026-11-28)
+
+- **Added (API):** `LICHUAN_C::prepareNodeSetting`, `nextNodeSetting`, `noteNodeSettingTransmission`,
+  `advanceNodeSetting` (terminal and local withdrawal), `prepareNodeSettingConfirmation` and `getNodeSetting`
+  (`Communication.h`, `src/profiles/lichuan_c/NodeSetting.cpp`). They cover one explicit 2203 write for node
+  1..127. Node 0, the current node and any node the caller declares configured are refused, as is a request
+  without a fresh clean released state read of this boot, the operator's DIP SW1-5 all-OFF attestation record
+  or a recorded route back. One 2203 download and one readback on the original route follow, the readback at
+  the next configuration epoch. An acknowledgement there is not activation. At most two read-only confirmation
+  slots read 2203 on the exact before or requested route, each with its own deadline: no scan, switch or
+  replay. A lost reply stays uncertain and is never resent. Activation and persistence stay `UNKNOWN` in
+  `NodeSettingResult`. Host tests: `test/node_setting_test.cpp`.
+
 ### Persistence slice b1 (prompt 61, stage (b), 2026-11-28)
 
 - **Added (examples):** the backup record a factory restore's guard names (`ConfigurationRestore.h`,

@@ -57,6 +57,7 @@ REQUIRED = {
     "examples/common/ConfigurationRestore.h", "examples/common/ConfigurationRestore.cpp",
     "include/MotorControlCAN/profiles/lichuan_c/Communication.h",
     "src/profiles/lichuan_c/Communication.cpp", "src/profiles/lichuan_c/HeartbeatCommunication.cpp",
+    "src/profiles/lichuan_c/NodeSetting.cpp", "test/node_setting_test.cpp",
     "test/communication_test.cpp", "test/heartbeat_communication_test.cpp",
     "CMakeLists.txt", "cmake/MotorControlCANConfig.cmake.in", "library.json",
     "LICENSE", "README.md", "CHANGELOG.md", "CONTRIBUTING.md", "SECURITY.md",

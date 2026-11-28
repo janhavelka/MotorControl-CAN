@@ -288,5 +288,195 @@ Status getCommunication(const CommunicationContext& context, const AxisReservati
                         const ReadTarget& current, uint64_t nowUs,
                         CommunicationResult& output) noexcept;
 
+// Prompt 61 node setting (decision 4): one explicit 2203 "CAN ID" write (EN86/ZH86 p18, U16 RW 0..127).
+// DIP SW1-5 select nodes 1..31 and all OFF means user-defined (p10); DIP precedence, when a stored 2203
+// takes effect and whether a save is needed are documented nowhere, so they stay UNKNOWN.
+/** Nodes the caller declares configured on the interface: node n is bit n % 32 of words[n / 32]. */
+struct NodeSet {
+    uint32_t words[4] = {}; ///< Nodes 0..127; bit 0 of words[0] (node 0) is ignored.
+};
+/** Caller statements a node setting needs, never inferred from SDO success or reads. */
+struct NodeSettingReview {
+    ReadTarget target; ///< Exact original route; its endpoint address is the drive's current node.
+    /** Nonzero retained operator record that DIP SW1-5 are all OFF on this drive, so that 2203 rather
+     * than the DIP switches selects its node (p10). An explicit statement; no read establishes it. */
+    uint32_t dipAttestationRecord = 0;
+    /** Nonzero recorded route back to the current node (the DIP setting or a later 2203 write and how the
+     * host reaches the drive meanwhile). */
+    uint32_t routeBackRecord = 0;
+    NodeSet configured; ///< Every node configured on this interface; the requested node must be absent.
+};
+/** One explicit candidate; no scan, range sweep or default. */
+struct NodeSettingRequest {
+    uint8_t node = 0; ///< Requested node 1..127; 0 and the current node are refused.
+};
+/** Finite local workflow phase of the write, never an NMT, route or drive state. */
+enum class NodeSettingState : uint8_t {
+    EMPTY,        ///< Unprepared.
+    WRITING,      ///< The one 2203:00 U16 download on the original route awaits its terminal.
+    READING_BACK, ///< Acknowledged; the one 2203:00 upload on the original route, at the next epoch.
+    STORED,       ///< Acknowledged and read back equal on the original route; activation unknown.
+    FAILED        ///< Immutable failed intent; nothing is resent.
+};
+/** The two exact candidates a confirmation may read: never a scan. */
+enum class NodeSettingCandidate : uint8_t {
+    BEFORE,   ///< The original node on the original route's identifiers.
+    REQUESTED ///< The requested node on its default SDO identifiers 0x600 + node and 0x580 + node.
+};
+/** What one confirmation slot observed. */
+enum class NodeSettingAnswer : uint8_t {
+    NONE,        ///< Slot unused or still active.
+    ANSWERED,    ///< A successful 2203 upload on that candidate route, raw value in raw.
+    NOT_ANSWERED ///< The upload failed or was withdrawn: outcome says how; nothing is inferred.
+};
+/** Most confirmation slots one node setting has (MotorControl-RS prepareCommunicationConfirmation). */
+constexpr uint8_t NODE_SETTING_CONFIRMATIONS = 2;
+/** One read-only confirmation slot with its own deadline. */
+struct NodeSettingConfirmation {
+    NodeSettingCandidate candidate = NodeSettingCandidate::BEFORE; ///< The exact candidate read.
+    ReadTarget target;       ///< The application's switched host route for that candidate.
+    uint64_t startedUs = 0;  ///< Supplied preparation time of the slot.
+    uint64_t deadlineUs = 0; ///< The slot's own exclusive cutoff.
+    NodeSettingAnswer answer = NodeSettingAnswer::NONE; ///< The slot's observation.
+    ReadOutcome outcome = ReadOutcome::NONE;            ///< The slot's terminal cause.
+    uint16_t raw = 0;            ///< ANSWERED: the raw 2203 value on that route.
+    bool evidencePresent = false; ///< evidence below is meaningful.
+    CANOPEN::SdoCompletion evidence; ///< The slot's exact upload terminal.
+};
+/** Caller-owned single 2203 write, its readback and at most two confirmation slots.
+ * All public fields are read-only between calls. */
+struct NodeSettingContext {
+    AxisReservation reservation; ///< Actual continuous exclusion on the original route, frozen.
+    NodeSettingReview review;    ///< Owned original review.
+    NodeSettingRequest request;  ///< Owned exact candidate.
+    uint8_t beforeNode = 0;      ///< The original route's node, from its endpoint address.
+    NodeSettingState state = NodeSettingState::EMPTY; ///< Write workflow phase.
+    ReadOutcome outcome = ReadOutcome::NONE;      ///< Write workflow result.
+    ReadOutcome writeOutcome = ReadOutcome::NONE; ///< Immutable after the download terminal.
+    Status status;              ///< Write workflow status, never activation or health.
+    ReadOptions options;        ///< Nonzero queue/response budgets, also of every confirmation.
+    uint64_t maximumAgeUs = 0;  ///< Nonzero inclusive state-read age policy.
+    uint64_t startedUs = 0;     ///< Supplied preparation time.
+    uint64_t servicedUs = 0;    ///< Last accepted mutation time.
+    uint64_t stepStartedUs = 0; ///< Earliest admission of the current write-workflow step.
+    uint64_t deadlineUs = 0;    ///< Immutable exclusive cutoff of the write and its readback.
+    uint32_t operation = 0;     ///< Nonzero caller identity, not on the wire.
+    bool transmissionNoted = false;      ///< Pre-handoff download notice accepted exactly once.
+    bool effectsPossible = false;        ///< The download may have reached the drive.
+    bool prerequisitesWithdrawn = false; ///< Dependent configuration, maps and work must be retired.
+    bool writeAcknowledged = false;      ///< Matched SDO acknowledgement on the old route, not activation.
+    bool uncertain = false;              ///< Unconfirmed stored value; a lost reply keeps it.
+    bool readbackKnown = false;          ///< readbackRaw holds the original-route upload.
+    uint16_t readbackRaw = 0;            ///< Raw 2203 read back on the original route.
+    bool writeEvidencePresent = false;   ///< writeEvidence is meaningful.
+    CANOPEN::SdoCompletion writeEvidence; ///< The download's exact terminal.
+    uint8_t confirmationsUsed = 0;  ///< Slots consumed, 0..NODE_SETTING_CONFIRMATIONS; never more.
+    bool confirmationActive = false; ///< The last slot's upload is active.
+    NodeSettingConfirmation confirmations[NODE_SETTING_CONFIRMATIONS]; ///< The slots in order.
+    /** Whether the drive needs a restart or another step before it answers at the stored node: no source
+     * states it, so always UNKNOWN. */
+    CommunicationRequirement activation = CommunicationRequirement::UNKNOWN;
+    CommunicationRequirement persistence = CommunicationRequirement::UNKNOWN; ///< Save needed: UNKNOWN.
+    /** NOT_REPEATABLE: a node change can move the drive away from the route that would repeat it. */
+    RetryClass retryClass = RetryClass::NOT_REPEATABLE;
+};
+/** Checked result of a node setting; an acknowledgement on the old route is never activation. */
+struct NodeSettingResult {
+    uint8_t beforeNode = 0;     ///< The original node.
+    uint8_t requestedNode = 0;  ///< The requested node.
+    NodeSettingState state = NodeSettingState::EMPTY; ///< Write workflow phase, STORED or FAILED.
+    bool writeAcknowledged = false; ///< The download was acknowledged on the old route.
+    bool stored = false;        ///< STORED: the old route read back the requested value.
+    bool uncertain = false;     ///< The stored value is unconfirmed.
+    uint8_t confirmationsUsed = 0; ///< Slots consumed.
+    NodeSettingAnswer before = NodeSettingAnswer::NONE;    ///< Latest BEFORE slot's observation.
+    NodeSettingAnswer requested = NodeSettingAnswer::NONE; ///< Latest REQUESTED slot's observation.
+    /** The drive answered 2203 on the requested node's route: observed, for this boot only. */
+    bool answeredOnRequested = false;
+    CommunicationRequirement activation = CommunicationRequirement::UNKNOWN;  ///< Always UNKNOWN.
+    CommunicationRequirement persistence = CommunicationRequirement::UNKNOWN; ///< Always UNKNOWN.
+};
+/** Prepare one explicit 2203 node setting atomically, without I/O.
+ * @param[out] output Replaced only on success; no input overlap.
+ * @param[in] reservation Actual continuous owner exclusion on the original route, acquired before state.
+ * @param[in] review Exact target, nonzero DIP attestation and route-back records, configured nodes.
+ * @param[in] request Node 1..127, neither the current node nor a configured one.
+ * @param[in] state Fresh clean STATUS and MONITORS read of this boot (the reservation's node epoch)
+ * under the reservation: 2100 reports released, with no running, alarm or undocumented bit (project
+ * policy: no source gives a state for 2203; a released drive cannot hold torque through a route change).
+ * @param[in] operation Nonzero unique live identity.
+ * @param[in] nowUs Supplied monotonic microseconds, zero valid.
+ * @param[in] deadlineUs Immutable exclusive cutoff of the write and its readback.
+ * @param[in] options Nonzero budgets; no width override or PDO selector.
+ * @param[in] maximumAgeUs Nonzero inclusive state age cap.
+ * @return OK; INVALID_CONFIG with ReadError::ARGUMENT for a missing record, budget or candidate,
+ * ReadError::VALUE for node 0, above 127, the current or a configured node, ReadError::STATE for a stale,
+ * unclean, enabled or other-boot state read, ReadError::OVERLAP; UNSUPPORTED for another model.
+ */
+Status prepareNodeSetting(NodeSettingContext& output, const AxisReservation& reservation,
+                          const NodeSettingReview& review, const NodeSettingRequest& request,
+                          const ReadContext& state, uint32_t operation, uint64_t nowUs,
+                          uint64_t deadlineUs, const ReadOptions& options,
+                          uint64_t maximumAgeUs) noexcept;
+/** Arm one read-only confirmation slot after the write's terminal (MotorControl-RS two-slot rule): an
+ * exact candidate, its own deadline, no scan, switch or replay. The application switches its host route
+ * first; the candidate is that route.
+ * @param[in,out] context STORED, or FAILED after a possible download; no slot active; a slot left.
+ * @param[in] candidate The application's route: BEFORE the original identifiers and node, REQUESTED the
+ * requested node with identifiers 0x600 + node and 0x580 + node; nonzero node epoch.
+ * @param[in] which The candidate it is.
+ * @param[in] nowUs Supplied monotonic time.
+ * @param[in] deadlineUs The slot's own exclusive cutoff, with the context's budgets fitting.
+ * @return Atomic status; INVALID_CONFIG with ReadError::STATE without a terminal write, with an active or
+ * no remaining slot, ReadError::TARGET for another route, ReadError::TIME for a short deadline.
+ */
+Status prepareNodeSettingConfirmation(NodeSettingContext& context, const ReadTarget& candidate,
+                                      NodeSettingCandidate which, uint64_t nowUs,
+                                      uint64_t deadlineUs) noexcept;
+/** Yield the current single native step without admission, replay or I/O.
+ * @param[in] context Prepared write, its readback, an active confirmation or a terminal context.
+ * @param[in] live Actual same reservation, checked for the write and its readback; a confirmation slot
+ * reads on the application's candidate route and checks only that route's binding.
+ * @param[in] current The write's binding (original before the notice, the next configuration epoch
+ * afterwards, after the owner moved there) or the active confirmation's route binding.
+ * @param[in] nowUs Supplied time before the active deadline with the budgets fitting.
+ * @param[out] output Unchanged on refusal; ready=false when nothing is active.
+ * @return Local status. Step 1 downloads 2203, step 2 reads it back, steps 3 and 4 are the slots.
+ */
+Status nextNodeSetting(const NodeSettingContext& context, const AxisReservation& live,
+                       const Binding& current, uint64_t nowUs, PreparedRead& output) noexcept;
+/** Withdraw dependent configuration before the possible download handoff, exactly once.
+ * @param[in,out] context WRITING, untouched on refusal.
+ * @param[in] live Actual continuous reservation.
+ * @param[in,out] current Actual binding; its configuration generation advances once.
+ * @param[in] nowUs Supplied time before the cutoff with the budgets remaining.
+ * @return Atomic local status; sends nothing.
+ */
+Status noteNodeSettingTransmission(NodeSettingContext& context, const AxisReservation& live,
+                                   Binding& current, uint64_t nowUs) noexcept;
+/** Consume the exact terminal of the active step, write, readback or confirmation.
+ * @param[in,out] context Active step; invalid input leaves it unchanged.
+ * @param[in] original The frozen original reservation; it need not stay live for a confirmation.
+ * @param[in] evidence The exact owner terminal of that step.
+ * @param[in] nowUs Supplied time at least completion; the active cutoff wins at equality.
+ * @return Local status. A failed write or readback ends the intent, uncertain after a possible TX,
+ * never resent; an acknowledgement on the old route is not activation. A slot's failure is recorded as
+ * NOT_ANSWERED and nothing else is yielded.
+ */
+Status advanceNodeSetting(NodeSettingContext& context, const AxisReservation& original,
+                          const CANOPEN::SdoCompletion& evidence, uint64_t nowUs) noexcept;
+/** Withdraw the active step after the owner retired it; never a motor command.
+ * @param[in,out] context Active step. @param[in] reason CANCELLED, DEADLINE or INVALIDATED.
+ * @param[in] nowUs Supplied nondecreasing time; the cutoff wins.
+ * @return Atomic status; possible effects and earlier terminals are kept.
+ */
+Status advanceNodeSetting(NodeSettingContext& context, ReadOutcome reason, uint64_t nowUs) noexcept;
+/** Publish the checked node-setting result.
+ * @param[in] context A context whose write workflow is STORED or FAILED and no slot is active.
+ * @param[out] output Unchanged on refusal.
+ * @return OK, or INVALID_CONFIG with ReadError::STATE. Activation and persistence stay UNKNOWN.
+ */
+Status getNodeSetting(const NodeSettingContext& context, NodeSettingResult& output) noexcept;
+
 } // namespace LICHUAN_C
 } // namespace MotorControlCAN

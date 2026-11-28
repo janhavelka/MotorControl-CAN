@@ -812,11 +812,18 @@
         "getCommunication": 2,
         "prepareCommunication": 1,
         "prepareCommunicationConfirmation": 1,
-        "noteCommunicationTransmission": 1
+        "noteCommunicationTransmission": 1,
+        "prepareNodeSetting": 1,
+        "prepareNodeSettingConfirmation": 1,
+        "nextNodeSetting": 1,
+        "noteNodeSettingTransmission": 1,
+        "advanceNodeSetting": 2,
+        "getNodeSetting": 1
       },
       "implementation": [
         "src/profiles/lichuan_c/Communication.cpp",
         "src/profiles/lichuan_c/HeartbeatCommunication.cpp",
+        "src/profiles/lichuan_c/NodeSetting.cpp",
         "src/profiles/lichuan_c/Reads.cpp"
       ],
       "tests": [
@@ -827,6 +834,10 @@
         {
           "path": "test/heartbeat_communication_test.cpp",
           "ctest": "heartbeat_communication"
+        },
+        {
+          "path": "test/node_setting_test.cpp",
+          "ctest": "node_setting"
         },
         {
           "path": "test/probe_commissioning_app_test.cpp",

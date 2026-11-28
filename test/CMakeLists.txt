@@ -693,6 +693,11 @@ target_link_libraries(heartbeat_communication_test PRIVATE MotorControlCAN::CanB
 strict_test(heartbeat_communication_test)
 add_test(NAME heartbeat_communication COMMAND heartbeat_communication_test)
 set_tests_properties(heartbeat_communication PROPERTIES TIMEOUT 30)
+add_executable(node_setting_test node_setting_test.cpp)
+target_link_libraries(node_setting_test PRIVATE MotorControlCAN::CanBusOwner)
+strict_test(node_setting_test)
+add_test(NAME node_setting COMMAND node_setting_test)
+set_tests_properties(node_setting PROPERTIES TIMEOUT 30)
 
 add_executable(persistence_test persistence_test.cpp)
 target_link_libraries(persistence_test PRIVATE MotorControlCAN::CanBusOwner)
