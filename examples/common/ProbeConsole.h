@@ -166,9 +166,6 @@ class ProbeConsole {
         settings_ = &settings;
         return true;
     }
-    /** Borrow an externally armed typed commissioning bridge; no review/grant is invented.
-     * @param commissioning Stationary same-selected-axis bridge, outlives the console.
-     * @return False unchanged for a different owner graph or replacement attachment. */
     /** Set the optional per-node cap on the `persistence` route's save and restore commands (prompt 61,
      * decision 2): project policy against unknown flash endurance, never a manufacturer limit. Counts made so
      * far stay and are judged against the new cap from the next command on. @param perNode 0 turns it off. */
@@ -177,6 +174,9 @@ class ProbeConsole {
     uint32_t persistenceAttempts(unsigned node) const noexcept {
         return node >= 1 && node <= 127 ? persistenceAttempts_[node] : 0;
     }
+    /** Borrow an externally armed typed commissioning bridge; no review/grant is invented.
+     * @param commissioning Stationary same-selected-axis bridge, outlives the console.
+     * @return False unchanged for a different owner graph or replacement attachment. */
     bool attachCommissioning(ProbeCommissioning& commissioning) noexcept {
         if ((commissioning_ && commissioning_ != &commissioning) ||
             !commissioning.usesOwner(owner_))
