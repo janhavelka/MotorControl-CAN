@@ -670,7 +670,11 @@ set_tests_properties(package_contract PROPERTIES TIMEOUT 180)
 set_tests_properties(documentation_contract PROPERTIES TIMEOUT 90 LABELS "full;docs")
 set_tests_properties(package_contract PROPERTIES LABELS full)
 set_tests_properties(version_contract repository_contract verification_contract firmware_build_contract planning_integrity
-    planning_validator_contract ledger_validator_contract stack_check_contract repository_checks objects_generated objects_generator_contract PROPERTIES TIMEOUT 90)
+    ledger_validator_contract stack_check_contract repository_checks objects_generated objects_generator_contract PROPERTIES TIMEOUT 90)
+# The planning validator hashes every retained artifact, so its time grows with the evidence: on the Windows CI
+# runner it took 77 to 88 s through 2026-11-27 and exceeded 90 s on 2026-11-28 (run 46145240010), and it already
+# timed out locally under parallel load. The limit follows that measured time; the checks are unchanged.
+set_tests_properties(planning_validator_contract PROPERTIES TIMEOUT 240)
 
 add_executable(discovery_test discovery_test.cpp)
 target_link_libraries(discovery_test PRIVATE MotorControlCAN::CanopenNode)
