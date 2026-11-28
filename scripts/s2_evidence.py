@@ -314,6 +314,13 @@ GRAMMAR = (
         "prepared:b state:u outcome:u>saveOutcome exec:u attempts:u guardsOff:x uncertain:b>saveUncertain "
         "written:b wire:u ack:b abort:x cfg0:u cfg1:u followed:b r2300a:i? r2300b:i?",
         signals=(("health", "saveOutcome"), ("health", "saveUncertain")), per_node=True),
+    # restore (prompt 61): TRIAL_SAVE's fields for the one 2300=1, then the backup record it named.
+    Row("TRIAL_RESTORE", "TRIAL_RESTORE ", "summary",
+        "prepared:b state:u outcome:u>saveOutcome exec:u attempts:u guardsOff:x uncertain:b>saveUncertain "
+        "written:b wire:u ack:b abort:x cfg0:u cfg1:u followed:b r2300a:i r2300b:i",
+        signals=(("health", "saveOutcome"), ("health", "saveUncertain")), per_node=True),
+    Row("TRIAL_BACKUP", "TRIAL_BACKUP ", "summary",
+        "record:u fields:u groups:x unknownGroups:x unknown:x complete:b"),
     Row("TRIAL_EXTRA", "TRIAL_EXTRA ", "summary", "block:u fields:u 1001:x 603f:x 6064:i 606c:i"),
     Row("TRIAL_EVIDENCE", "TRIAL_EVIDENCE ", "summary",
         "record:u as:u am:x av:x cs:u cm:x cv:x rule:u dt:x hw:x sw:x vid:x pc:x rev:x mc:x fc:x rb:u?"),
@@ -703,7 +710,7 @@ TRIAL_ROUTES = {"readiness-actions": "actions", "readiness-io": "io", "readiness
                 "velocity-target": "velocity-target", "subdivision": "subdivision", "controlword": "controlword",
                 "loop": "loop", "mode-probe": "mode-probe", "position-change": "position-change",
                 "velocity-change": "velocity-change", "velocity-nmt": "velocity-nmt", "motor-release": "release",
-                "save": "save"}
+                "save": "save", "restore": "restore"}
 for _command, _route in TRIAL_ROUTES.items():
     EXPECTED[_command] = Expect("TRIAL", "TRIAL admitted", 0, "trial_" + _route, _TRIAL_RESPONSES)
 

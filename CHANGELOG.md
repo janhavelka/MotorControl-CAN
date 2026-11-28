@@ -18,7 +18,13 @@
 - **Changed (S2 bench):** `Ts` reads 2300 before its download and again after an acknowledgement, at the new
   epoch (TRIAL_SAVE `r2300a`, `r2300b`, -1 when not held); 2300=0 is never written and nothing is retried.
   `scripts/s2_bench.py` sums saves per node across runs from its ledger; `--motion-caps` refuses a fifth.
-- **Not yet:** the factory-restore bench route and its runner line (slice b1 remainder).
+- **Added (S2 bench):** the factory-restore route `Tf` (`RouteKind::RESTORE`, runner `restore`). It records the
+  node's `PersistenceBackup` from five typed group reads (never complete), reads 2300, and then sends one 2300=1
+  through `prepareFactoryRestore` with the backup guard set. The library refuses it before TX unless every
+  supported group was recorded. 2300 is read again after an acknowledgement; 2300=0 is never written and nothing
+  is retried or re-applied (`compareBackup` and `prepareBackupReapply` stay explicit later steps). It shares the
+  per-node cap and ledger sum with `Ts`. The runner refuses it without `--persistent` and `--backup-guard`
+  (TRIAL_RESTORE, TRIAL_BACKUP).
 
 ### Acceleration-form fix round (prompt 60, stage (c), 2026-11-27)
 

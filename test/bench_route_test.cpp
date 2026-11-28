@@ -5888,6 +5888,70 @@ void testSave() {
         }
     CHECK(saves == 4);
 }
+// Prompt 61: the explicit factory restore route. The backup record of five typed groups, never complete, then the
+// restore's prerequisites, 2300 before, one 2300=1 download with the backup guard set, and 2300 after; nothing is
+// re-applied, retried or rearmed. A backup group the drive refuses ends the route before any download, and the
+// per-node cap counts restores with saves.
+void testRestore() {
+    scenario = "restore";
+    namespace X = MotorControlCANExample;
+    std::unique_ptr<Rig> r(new Rig);
+    std::unique_ptr<E::SaveWork> save(new E::SaveWork);
+    Drive& d = r->driver.drives[0];
+    CHECK(std::strcmp(r->start("f1,1,0"), "unattended") == 0);
+    CHECK(std::strcmp(r->start("f1,1,1"), "memory") == 0); // No SaveWork yet.
+    CHECK(r->route.attachSaveWork(*save));
+    d.abortIndex = 0x2500; // CONTROL, the backup's fourth group.
+    const E::RouteRecord& refused = r->run("f1,2,1");
+    CHECK(refused.failure == E::RouteFailure::SERVICE && !refused.savePrepared && r->downloadsFrom(0) == 0);
+    CHECK(save->backup[0].recordId == 2 && save->backup[0].groupsRead != X::BACKUP_GROUPS_SUPPORTED &&
+          !save->backup[0].complete);
+    d.abortIndex = 0;
+    r->release();
+    const size_t first = r->driver.requests.size();
+    const E::RouteRecord& ok = r->run("f1,3,1");
+    CHECK(ok.failure == E::RouteFailure::NONE && ok.savePrepared && ok.terminalCount == 37 && ok.motionTotal == 0);
+    CHECK(ok.saveState == uint8_t(L::PersistenceState::ACKNOWLEDGED) && ok.saveAttempts == 1 && !ok.saveUncertain &&
+          ok.saveGuardsOff == L::PERSISTENCE_GUARDS_REVIEW); // The backup guard was set.
+    CHECK(ok.save2300Present[0] && ok.save2300Present[1]);
+    CHECK(ok.backupRecord == 3 && ok.backupFields == X::BACKUP_FIELDS && ok.backupGroups == X::BACKUP_GROUPS_SUPPORTED &&
+          ok.backupUnknownGroups == (X::BACKUP_GROUPS_ALL & ~X::BACKUP_GROUPS_SUPPORTED) &&
+          ok.backupUnknown == X::BACKUP_UNKNOWN_ALL && !ok.backupComplete && !save->backup[0].complete);
+    size_t at = first;
+    const Address driver[] = {{0x2200, 0}, {0x2201, 0}};
+    const Address limits[] = {{0x2202, 0}, {0x607d, 0}, {0x607d, 1}, {0x607d, 2}};
+    const Address io[] = {{0x2400, 0}, {0x2400, 1}, {0x2400, 2}, {0x2400, 3}, {0x2400, 4},
+                          {0x2400, 5}, {0x2400, 6}, {0x2400, 7}, {0x2400, 8}};
+    const Address control[] = {{0x2500, 0}, {0x2501, 0}};
+    const Address motion[] = {{0x6081, 0}, {0x6083, 0}, {0x6084, 0}};
+    const Address persistence[] = {{0x2300, 0}};
+    expectUploads(*r, at, 1, driver, 2);
+    expectUploads(*r, at, 1, limits, 4);
+    expectUploads(*r, at, 1, io, 9);
+    expectUploads(*r, at, 1, control, 2);
+    expectUploads(*r, at, 1, IDENTITY, 9);
+    expectUploads(*r, at, 1, STOP_STATE, 5);
+    expectUploads(*r, at, 1, motion, 3);
+    expectUploads(*r, at, 1, persistence, 1);
+    const uint8_t write[8] = {0x2b, 0x00, 0x23, 0, 0x01, 0, 0, 0}; // 2300 = 1, restore factory settings.
+    CHECK(download(r->driver.requests[at++], 1, write));
+    expectUploads(*r, at, 1, persistence, 1);
+    CHECK(at == r->driver.requests.size() && r->downloadsFrom(first) == 1);
+    const std::string text = r->dump();
+    CHECK(has(text, "TRIAL_PLAN route=restore node=1 trial=3 attended=1\n"));
+    CHECK(has(text, "TRIAL_RESTORE prepared=1 state=2 ") && has(text, " guardsOff=0f uncertain=0 written=1 wire=0 ack=1 "));
+    CHECK(has(text, "TRIAL_BACKUP record=3 fields=20 groups=008f unknownGroups=7f70 unknown=07 complete=0\n"));
+    r->release();
+    // Two persistence admissions on node 1, the refused one included: a cap of 2 refuses the next restore and the
+    // next save before anything is sent.
+    CHECK(r->route.persistenceAdmissions(1) == 2);
+    E::RouteCaps caps;
+    caps.persistencePerNode = 2;
+    r->route.setCaps(caps);
+    const size_t sent = r->driver.requests.size();
+    CHECK(std::strcmp(r->start("f1,4,1"), "budget") == 0 && std::strcmp(r->start("s1,4,1"), "budget") == 0 &&
+          r->driver.requests.size() == sent);
+}
 // The library's refusals send nothing; a drive that stores another value, a lost reply and an abort end the
 // route with the write's terminal and whatever readback arrived on record, and nothing is sent again.
 void testSubdivisionFailures() {
@@ -8389,6 +8453,7 @@ int main(int argc, char** argv) {
     testLoop();
     testLoopFailures();
     testSave();
+    testRestore();
     testRelease();
     testCloseRefusals();
     testBorrowedRecordArena();

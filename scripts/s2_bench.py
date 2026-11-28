@@ -256,6 +256,9 @@ TRIALS = {
     # Prompt 57: the explicit parameter save, one 2300=2 through the library's prepareSave. Persistent:
     # --persistent is required.
     "save": ("s", False, "prompt 57 explicit parameter save"),
+    # Prompt 61: the explicit factory restore, one 2300=1 through prepareFactoryRestore with the backup guard
+    # set. Persistent and destructive: --persistent and --backup-guard are required.
+    "restore": ("f", False, "prompt 61 explicit factory restore"),
 }
 # Read routes whose read effect on the drive is unknown, so an attendant may watch the fault LED before
 # and after: --fault-led prompt asks, unobserved records that nobody looked.
@@ -264,7 +267,9 @@ FAULT_LED_ROUTES = ("readiness-actions", "readiness-history", "settings-2202", "
 # writes, and home, which writes nothing. Their send entries carry "settings": 1, the ledger's name for
 # this class since the settings routes, kept so that earlier ledgers still read.
 SETTINGS_ROUTES = ("settings-2202", "io-di3", "home", "velocity-target", "subdivision", "loop", "mode-probe",
-                   "save")
+                   "save", "restore")
+# The 2300 commands (prompt 61), counted together per node against CAMPAIGN_SAVES_PER_NODE.
+PERSISTENCE_LETTERS = ("s", "f")
 # release's experiment words, as LICHUAN_C::ReleaseExperiment admits them: 0x0000 and 0x0006, nothing else.
 RELEASE_EXPERIMENT_WORDS = (0x0000, 0x0006)
 RELEASE_CYCLES = (1, 16)  # BenchRoute.cpp RELEASE_FIELDS: CYCLES and MODE_INTERVAL.
@@ -632,6 +637,16 @@ def trial_line(args, parser):
             parser.error("save writes the drive's stored parameters (2300=2): --persistent is required to state that "
                          "a persistent write is intended (owner-absence rule: docs/prompts/COMMON.md)")
         fields += [1]
+    elif args.command == "restore":
+        if not args.persistent:
+            parser.error("restore writes the drive's stored parameters (2300=1, restore factory settings): --persistent "
+                         "is required to state that a persistent write is intended (owner-absence rule: "
+                         "docs/prompts/COMMON.md)")
+        if not args.backup_guard:
+            parser.error("restore runs only with its backup guard set: --backup-guard is required to state that the "
+                         "route records the node's backup first and the library refuses the restore before TX "
+                         "without it")
+        fields += [1]
     elif args.command == "loop":
         fields += [1, _within(parser, "value", args.value, *LOOP_RANGE)]
     elif args.command == "motor-release":
@@ -730,8 +745,10 @@ def trial_line(args, parser):
         parser.error("--word belongs to controlword and motor-release")
     if args.command != "motor-release" and args.experiment:
         parser.error("--experiment belongs to motor-release")
-    if args.command != "save" and args.persistent:
-        parser.error("--persistent belongs to save")
+    if args.command not in ("save", "restore") and args.persistent:
+        parser.error("--persistent belongs to save and restore")
+    if args.command != "restore" and args.backup_guard:
+        parser.error("--backup-guard belongs to restore")
     if args.command != "velocity" and args.range_probe:
         parser.error("--range-probe belongs to velocity")
     if args.command != "velocity" and args.reverse:
@@ -796,6 +813,10 @@ def plan_bounds(command, fields):
     if command == "save":
         # Identity, STATUS and MONITORS, MOTION_PARAMETERS, 2300, the one 2300 download, 2300 (prompt 61).
         return 9 + 5 + 3 + 1 + 1 + 1, 0
+    if command == "restore":
+        # DRIVER, SOFT_LIMITS, IO_INPUT_CONFIGURATION, CONTROL (the backup), identity, STATUS and MONITORS,
+        # MOTION_PARAMETERS, 2300, the one 2300 download, 2300 (BenchRoute.cpp terminalBound).
+        return 2 + 4 + 9 + 2 + 9 + 5 + 3 + 1 + 1 + 1, 0
     if command == "motor-release":
         cycles, interval = fields[5:7]
         # Identity (prompt 57), CONTROL (2500, 2501), the full read, the one word, at most the stated
@@ -1167,10 +1188,12 @@ class Campaign:
             letter += str(fields[8])
         if not self.caps:
             return
-        if command == "save" and cases[(letter, node)] + 1 > CAMPAIGN_SAVES_PER_NODE:
+        persistence = sum(cases[(key, node)] for key in PERSISTENCE_LETTERS)
+        if letter in PERSISTENCE_LETTERS and persistence + 1 > CAMPAIGN_SAVES_PER_NODE:
             raise Refused("the campaign holds %d saves on node %d, the cap is %d" %
-                          (cases[(letter, node)], node, CAMPAIGN_SAVES_PER_NODE))
-        if command in SETTINGS_ROUTES and command != "save" and cases[(letter, node)] + 1 > CAMPAIGN_PER_CASE:
+                          (persistence, node, CAMPAIGN_SAVES_PER_NODE))
+        if command in SETTINGS_ROUTES and letter not in PERSISTENCE_LETTERS and \
+                cases[(letter, node)] + 1 > CAMPAIGN_PER_CASE:
             raise Refused("the campaign holds %d %s admissions on node %d, the cap is %d" %
                           (cases[(letter, node)], command, node, CAMPAIGN_PER_CASE))
         if not motion:
@@ -1186,8 +1209,10 @@ class Campaign:
                           (cases[("S", node)] + 1, node, CAMPAIGN_PER_CASE))
 
     def saves(self, node):
-        """Saves sent to a node in every run of this campaign: each send entry may have written 2300."""
-        return self.counts()[1][("s", node)]
+        """Saves and factory restores sent to a node in every run of this campaign: each send entry may have
+        written 2300."""
+        cases = self.counts()[1]
+        return sum(cases[(key, node)] for key in PERSISTENCE_LETTERS)
 
     def summary(self):
         total, cases = self.counts()
@@ -1707,6 +1732,14 @@ def dry_run(args, fields):
                       % fields[4])
             print("  then at most %d STATUS/MONITORS/FEEDBACK cycles %d ms apart until the row's released report; "
                   "never a stop, never a standstill claim, no second word, no retry" % (fields[5], fields[6]))
+        if args.command == "restore":
+            print("  prompt 61: the backup record (DRIVER, SOFT_LIMITS, IO_INPUT_CONFIGURATION, CONTROL, "
+                  "MOTION_PARAMETERS; never complete), identity and clean STATUS/MONITORS reads, 2300, then the "
+                  "library's prepareFactoryRestore with the backup guard set: one download 2B 00 23 00 01 00 00 00 "
+                  "(2300 = 1, restore factory settings), and 2300 after an acknowledgement; persistent "
+                  "(--persistent and --backup-guard given)")
+            print("  nothing is re-applied: compareBackup and prepareBackupReapply are later explicit steps; "
+                  "no retry, never 2300 = 0")
         if args.command == "save":
             print("  prompt 57: one fresh identity read, a clean STATUS and MONITORS read and one MOTION_PARAMETERS "
                   "read, then the library's prepareSave with no review guard: one download 2B 00 23 00 02 00 00 00 "
@@ -1807,6 +1840,9 @@ def arguments(argv):
     word.add_argument("--experiment", action="store_true",
                       help="motor-release: set LICHUAN_C::ReleaseExperiment with --word; without it the measured table "
                            "chooses the word")
+    trial.add_argument("--backup-guard", action="store_true",
+                       help="restore: the operator's statement that the restore runs with its backup guard set; the "
+                            "route records the node's backup first")
     trial.add_argument("--persistent", action="store_true",
                        help="save: the operator's explicit statement that a persistent 2300=2 write is intended")
     move = parser.add_argument_group("move: the reviewed measurement record's evidence, never defaulted")

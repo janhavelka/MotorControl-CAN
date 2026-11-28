@@ -873,7 +873,7 @@ bool workStorage(E::BenchRoute& route, const E::RoutePlan& plan) {
     const bool needed = plan.kind == E::RouteKind::SETTINGS_2202 || plan.kind == E::RouteKind::IO_DI3 ||
                         plan.kind == E::RouteKind::SUBDIVISION || plan.kind == E::RouteKind::LOOP ||
                         plan.kind == E::RouteKind::VELOCITY || plan.kind == E::RouteKind::VELOCITY_CHANGE ||
-                        plan.kind == E::RouteKind::HOME || plan.kind == E::RouteKind::SAVE ||
+                        plan.kind == E::RouteKind::HOME || plan.kind == E::RouteKind::SAVE || plan.kind == E::RouteKind::RESTORE ||
                         (plan.kind == E::RouteKind::MOVE && plan.observer);
     if (!needed && !benchMemory.blocks[RESERVE_WORK].memory)
         return true;
@@ -883,7 +883,7 @@ bool workStorage(E::BenchRoute& route, const E::RoutePlan& plan) {
 // SAVE's own block (prompt 57), from the ordinary heap on the first save route only: no reservation grows
 // for a route nobody runs while the owner is away.
 bool saveStorage(E::BenchRoute& route, const E::RoutePlan& plan) {
-    if (plan.kind != E::RouteKind::SAVE || route.saveWorkAttached())
+    if ((plan.kind != E::RouteKind::SAVE && plan.kind != E::RouteKind::RESTORE) || route.saveWorkAttached())
         return true;
     void* memory = internalAllocate(nullptr, alignof(E::SaveWork), sizeof(E::SaveWork));
     return memory && route.attachSaveWork(*new (memory) E::SaveWork());

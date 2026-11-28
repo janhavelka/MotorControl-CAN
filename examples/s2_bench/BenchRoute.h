@@ -249,6 +249,17 @@
  *   the owner is away, so nobody runs it then, and the host runner has no command for it. Verification is the
  *   owner's power cycle and a later read (verifyPersistence), outside this route. Attended, no motion weight;
  *   capped per node by RouteCaps::persistencePerNode (prompt 61), not by settingsPerCase.
+ * - RESTORE, prompt 61: one explicit restore factory settings, prepareFactoryRestore and its one 2300=1
+ *   download, with the backup guard set. First the backup record (decision 3): DRIVER, SOFT_LIMITS,
+ *   IO_INPUT_CONFIGURATION, CONTROL and MOTION_PARAMETERS, each recorded by recordBackupGroup into this
+ *   node's PersistenceBackup in SaveWork with the route's trial as its identity; it lists every other group
+ *   and the unknown scope and is never complete. Then the identity and state reads and the MOTION_PARAMETERS
+ *   read the restore's prerequisites take, 2300 before, the restore, and 2300 after an acknowledgement, as
+ *   SAVE. The restore names the backup only when every supported group was recorded; the library refuses it
+ *   before TX otherwise. 2300=0 is never written and nothing is repeated. Nothing is re-applied: the record
+ *   stays in SaveWork until the next RESTORE on that node, for the operator's explicit compareBackup and
+ *   prepareBackupReapply after a later re-read. Persistent and destructive: never run while the owner is
+ *   away. Attended, no motion weight, counted and capped with SAVE by RouteCaps::persistencePerNode.
  * - ARM_MOVE and ARM_VELOCITY, the shared console's arming (BenchConsole.h). MOVE's identity read, full
  *   read (two for a relative base) and check against the host's reviewed start position, or VELOCITY's
  *   identity read, full read and released mode 3 check, exactly as those routes acquire them, then the
@@ -347,6 +358,7 @@
 #pragma once
 #include "BenchRouteNmt.h"
 #include "BenchNodes.h"
+#include "ConfigurationRestore.h"
 #include "FirmwareProbe.h"
 #include <MotorControlCAN/profiles/lichuan_c/Persistence.h>
 #include <MotorControlCAN/profiles/lichuan_c/Tuning.h>
@@ -419,7 +431,11 @@ enum class RouteKind : uint8_t {
     SAVE,
     /** Prompt 57, one release from the measured release table, optionally the explicit experiment, and the
      * library's cycles; `Tr`. Never a stop. Attended, settings caps. */
-    RELEASE
+    RELEASE,
+    /** Prompt 61, one explicit restore factory settings (2300=1) with the backup guard set, after the backup
+     * record and its prerequisite reads; `Tf`. Persistent and destructive, so never run while the owner is
+     * away. Attended, capped per node with SAVE. */
+    RESTORE
 };
 /** One parsed host request. Fields a route does not use are zero. Ranges are host campaign
  * policy and the documentary native ranges, never a drive timing or safety claim. */
@@ -704,7 +720,7 @@ struct RouteCaps {
     /** Settings, HOME and VELOCITY_TARGET admissions per route kind and node per boot; 0 is off. SAVE is
      * capped by persistencePerNode instead. */
     uint8_t settingsPerCase = 0;
-    /** SAVE admissions (each may write 2300) per node per boot; 0 is off (prompt 61, decision 2). Project
+    /** SAVE and RESTORE admissions (each may write 2300) per node per boot; 0 is off (prompt 61, decision 2). Project
      * policy against unknown flash endurance, never a manufacturer limit; the library keeps no count, and
      * scripts/s2_bench.py sums the saves of every run from its ledger. */
     uint8_t persistencePerNode = 0;
@@ -779,11 +795,14 @@ struct RouteWork {
     MotorControlCAN::LICHUAN_C::HomeRequest homeRequest; ///< HOME: the line's method, rates, ramp, offset.
     MotorControlCAN::LICHUAN_C::HomeOptions homeOptions; ///< HOME: the route's budgets.
 };
-/** Work of SAVE, placed by the caller on the first save route only, so that no other route's memory grows:
- * the save's three prerequisite reads and its context. Written only while SAVE runs; history afterwards. */
+/** Work of SAVE and RESTORE, placed by the caller on the first such route only, so that no other route's memory
+ * grows: the command's three prerequisite reads and its context, and each node's backup record. Written only
+ * while such a route runs; history afterwards. */
 struct SaveWork {
     MotorControlCAN::LICHUAN_C::PersistencePrerequisites prior; ///< Identity, STATUS/MONITORS, MOTION_PARAMETERS.
-    MotorControlCAN::LICHUAN_C::PersistenceContext persistence; ///< The one save and its terminal.
+    MotorControlCAN::LICHUAN_C::PersistenceContext persistence; ///< The one save or restore and its terminal.
+    /** RESTORE: each node's backup record (prompt 61), replaced by that node's next RESTORE. Never complete. */
+    PersistenceBackup backup[BENCH_NODES];
 };
 /** One owner terminal, compacted from Completion for the RESULT line. */
 struct RouteTerminal {
@@ -949,6 +968,12 @@ struct RouteRecord {
     /** SAVE: the 2300 reads, 0 before the download and 1 after its acknowledgement; false when not held. */
     bool save2300Present[2] = {};
     uint16_t save2300[2] = {}; ///< SAVE: the raw 2300 values of those reads, never completion evidence.
+    uint32_t backupRecord = 0;     ///< RESTORE: the backup's recordId (the trial), 0 when none was started.
+    uint8_t backupFields = 0;      ///< RESTORE: its fieldCount.
+    uint16_t backupGroups = 0;     ///< RESTORE: its groupsRead.
+    uint16_t backupUnknownGroups = 0; ///< RESTORE: its groupsUnknown.
+    uint8_t backupUnknown = 0;     ///< RESTORE: its unknown scope bits.
+    bool backupComplete = false;   ///< RESTORE: its complete flag, always false.
     uint8_t settingsState = 0;      ///< SettingsState at the record's end.
     uint8_t settingsOutcome = 0;    ///< ReadOutcome at the record's end.
     uint16_t settingsChanged = 0;   ///< Fields the candidate changed, by group position.
@@ -1205,7 +1230,7 @@ class BenchRoute {
     void setCaps(const RouteCaps& caps) noexcept { caps_ = caps; }
     /** @return The caps in force. */
     const RouteCaps& caps() const noexcept { return caps_; }
-    /** @param node 1..BENCH_NODES. @return SAVE admissions on that node this boot; 0 for another node. */
+    /** @param node 1..BENCH_NODES. @return SAVE and RESTORE admissions on that node this boot; 0 for another. */
     uint8_t persistenceAdmissions(uint8_t node) const noexcept {
         return node >= 1 && node <= BENCH_NODES ? persistence_[node - 1] : 0;
     }
@@ -1319,7 +1344,7 @@ class BenchRoute {
     // Motion admissions per motion route and node; read routes, READ_HISTORY included, have none. Indexed by
     // RouteKind up to VELOCITY_CHANGE, the last motion route.
     RouteCaps caps_; // Optional per-boot caps, all off by default (2026-11-17).
-    uint8_t motionTotal_ = 0, motionCases_[unsigned(RouteKind::RELEASE) + 1][BENCH_NODES] = {};
+    uint8_t motionTotal_ = 0, motionCases_[unsigned(RouteKind::RESTORE) + 1][BENCH_NODES] = {};
     uint8_t positionChangeCases_[8][BENCH_NODES] = {}; ///< Per experimental position case and node.
     // An arming route: a successful terminal whose reads context_ and identity_ still hold.
     bool armed_ = false;
@@ -1336,8 +1361,9 @@ class BenchRoute {
     // Attended admissions without motion weight per route (SETTINGS_2202, IO_DI3, HOME, VELOCITY_TARGET,
     // SUBDIVISION, LOOP) and node, then MODE_PROBE rows 5 + modeRaw.
     // MODE_PROBE has a separate bounded row per candidate, so one sweep need not reset the MCU.
-    uint8_t settingsCases_[17][BENCH_NODES] = {}; ///< Row 16: SAVE, counted, never capped by settingsPerCase.
-    uint8_t persistence_[BENCH_NODES] = {};       ///< SAVE admissions per node, capped by persistencePerNode.
+    /** Rows 16 and 17: SAVE and RESTORE, counted, never capped by settingsPerCase. */
+    uint8_t settingsCases_[18][BENCH_NODES] = {};
+    uint8_t persistence_[BENCH_NODES] = {}; ///< SAVE and RESTORE admissions per node, capped by persistencePerNode.
     // MOVE with an observer: node B's reads, apart from the route's own on node A.
     bool observerPending_ = false, observerActive_ = false;
     MotorControlCAN::CANOPEN::SdoTransfer observerExpected_;

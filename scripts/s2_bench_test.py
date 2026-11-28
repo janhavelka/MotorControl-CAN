@@ -3007,6 +3007,45 @@ class BenchTest(unittest.TestCase):
         campaign.check("save", [1, 6, 1])  # Three saves: over the settings cap of three, under the save cap.
         bench.Campaign(self.ledger, False, False).check("save", [1, 6, 1])  # Caps off: counted, never refused.
 
+    def test_restore_line_requires_persistent_and_backup_guard(self):
+        # Prompt 61: the Tf route's host command, the save's grammar (node, trial, attended). Persistent and
+        # destructive: --persistent and --backup-guard are required; counted with the saves per node.
+        def restore(*extra, node="1", trial="41"):
+            return ["--command", "restore", "--node", node, "--trial", trial] + list(extra)
+        args, fields = bench.arguments(BASE + restore("--persistent", "--backup-guard") + LEDGER + ["--output", "x"])
+        self.assertEqual(bench.encode(args.command, fields).decode("ascii"), signed("Tf1,41,1"))
+        self.assertEqual(bench.plan_bounds(args.command, fields), (37, 0))
+        self.assertEqual(bench.motion_weight(args.command, fields), (0, 0))
+        bench.check_bounds(args.command, fields)
+        self.assertEqual(evidence.TRIAL_ROUTES["restore"], "restore")
+        for argv, text in ((restore(), "--persistent is required"),
+                           (restore("--backup-guard"), "--persistent is required"),
+                           (restore("--persistent"), "--backup-guard is required"),
+                           (MODE3 + ["--backup-guard"], "--backup-guard belongs to restore")):
+            err = io.StringIO()
+            with self.assertRaises(SystemExit, msg=argv), contextlib.redirect_stderr(err):
+                bench.arguments(BASE + argv + LEDGER + ["--output", "x"])
+            self.assertIn(text, err.getvalue())
+        lines, _ = evidence.parse_bytes(
+            b"TRIAL_PLAN route=restore node=1 trial=3 attended=1\n"
+            b"TRIAL_RESTORE prepared=1 state=2 outcome=0 exec=1 attempts=1 guardsOff=0f uncertain=0 written=1 wire=0 "
+            b"ack=1 abort=00000000 cfg0=1 cfg1=2 followed=1 r2300a=0 r2300b=0\n"
+            b"TRIAL_BACKUP record=3 fields=20 groups=008f unknownGroups=7f70 unknown=07 complete=0\n")
+        self.assertEqual([(r.kind, r.status) for r in lines],
+                         [("TRIAL_PLAN", "parsed"), ("TRIAL_RESTORE", "parsed"), ("TRIAL_BACKUP", "parsed")])
+        self.assertEqual((lines[2].values["groups"], lines[2].values["complete"]), (0x8f, 0))
+        def sent(letter, trial):
+            return {"event": "send", "route": letter, "node": 1, "trial": trial, "motion": 0, "stop": 0,
+                    "settings": 1, "line": bench.sign_line("T%s1,%d,1" % (letter, trial))}
+        campaign = bench.Campaign(self.ledger, False, True)
+        campaign.entries = [sent("s", 1), sent("s", 2), sent("f", 3)]
+        self.assertEqual(campaign.saves(1), 3)
+        campaign.check("restore", [1, 4, 1])
+        campaign.entries.append(sent("f", 4))
+        for command in ("restore", "save"):
+            with self.assertRaises(bench.Refused):
+                campaign.check(command, [1, 5, 1])
+
     def test_release_record_reads_through_the_evidence_parser(self):
         # The firmware's record lines as test/bench_route_test.cpp's fake prints them (never a drive's).
         lines, _ = evidence.parse_bytes(

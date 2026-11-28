@@ -114,8 +114,10 @@ const char* const names[] = {"none",   "actions", "io",       "tuning", "mode1",
                              "counter-zero", "clear-alarm", "mode3", "velocity", "home", "velocity-target",
                              "arm-move", "arm-velocity", "arm-witness", "subdivision", "controlword", "loop", "mode-probe",
                              "position-change", "velocity-change", "velocity-nmt", "arm-move-pair", "arm-velocity-pair",
-                             "save", "release"};
-static_assert(sizeof names / sizeof names[0] == unsigned(RouteKind::RELEASE) + 1, "one name per route");
+                             "save", "release", "restore"};
+static_assert(sizeof names / sizeof names[0] == unsigned(RouteKind::RESTORE) + 1, "one name per route");
+// The 2300 commands (prompt 61): an explicit save or factory restore, counted and capped per node together.
+bool isPersistence(RouteKind kind) { return kind == RouteKind::SAVE || kind == RouteKind::RESTORE; }
 // MODE_ONE..MOVE and RELEASED_QUICK..RELATIVE: READ_HISTORY is a read, and the settings routes after
 // RELATIVE change drive state without motion and have caps of their own.
 // COUNTER_ZERO moves the position reference and CLEAR_ALARM may let a drive act again: motion class too.
@@ -152,6 +154,7 @@ int attendedCase(RouteKind kind) {
            : kind == RouteKind::SUBDIVISION     ? 4
            : kind == RouteKind::LOOP            ? 5
            : kind == RouteKind::SAVE            ? 16 // After MODE_PROBE's rows 6..15.
+           : kind == RouteKind::RESTORE         ? 17
                                                 : -1;
 }
 // The two isolated experiments that write 607A, 6081, 6083, 6084 and a trigger themselves.
@@ -560,8 +563,10 @@ constexpr Grammar GRAMMARS[] = {{'A', RouteKind::READ_ACTIONS, READ_FIELDS, coun
                                 // Prompt 57: `Ts`, one explicit save parameters.
                                 {'s', RouteKind::SAVE, SAVE_FIELDS, countOf(SAVE_FIELDS)},
                                 // Prompt 57: `Tr`, the release trials.
-                                {'r', RouteKind::RELEASE, RELEASE_FIELDS, countOf(RELEASE_FIELDS)}};
-static_assert(sizeof GRAMMARS / sizeof GRAMMARS[0] == unsigned(RouteKind::RELEASE), "one grammar per route");
+                                {'r', RouteKind::RELEASE, RELEASE_FIELDS, countOf(RELEASE_FIELDS)},
+                                // Prompt 61: `Tf`, one explicit factory restore; the save's fields.
+                                {'f', RouteKind::RESTORE, SAVE_FIELDS, countOf(SAVE_FIELDS)}};
+static_assert(sizeof GRAMMARS / sizeof GRAMMARS[0] == unsigned(RouteKind::RESTORE), "one grammar per route");
 // The host line numbers these as the library declares them.
 static_assert(unsigned(L::StatusLayout::EN86) == 1 && unsigned(L::StatusLayout::ZH86) == 2 &&
                   unsigned(L::StatusLayout::ZH57) == 3 && unsigned(L::StatusLayout::OP86) == 4 &&
@@ -770,6 +775,10 @@ unsigned terminalBound(const RoutePlan& p) {
     case RouteKind::SAVE:
         // Identity, STATUS and MONITORS, MOTION_PARAMETERS, the 2300 read, the one 2300 download, the 2300 read.
         return 9 + 5 + 3 + 1 + 1 + 1;
+    case RouteKind::RESTORE:
+        // DRIVER, SOFT_LIMITS, IO_INPUT_CONFIGURATION, CONTROL, identity, STATUS and MONITORS, MOTION_PARAMETERS,
+        // the 2300 read, the one 2300 download, the 2300 read.
+        return 2 + 4 + 9 + 2 + 9 + 5 + 3 + 1 + 1 + 1;
     case RouteKind::RELEASE:
         // Identity, CONTROL, the full read, the one word, at most the stated seven-field cycles and one of
         // margin.
@@ -1061,7 +1070,7 @@ bool BenchRoute::preflight(SequenceId sequence, const C::SdoTransfer& transfer,
         if (routeWork && isSettings(record_->plan.kind)) {
             return noteSettings(sequence, transfer, now);
         }
-        if (routeWork && record_->plan.kind == RouteKind::SAVE)
+        if (routeWork && isPersistence(record_->plan.kind))
             return noteSave(sequence, transfer, now);
         return true;
     }
@@ -1111,7 +1120,7 @@ bool BenchRoute::attachSaveWork(SaveWork& work) noexcept {
 // The save's notice, just before its download may leave: the binding advances to the next configuration
 // epoch once, so that anything prepared at the old epoch goes stale. A refused notice withdraws the download.
 bool BenchRoute::noteSave(SequenceId sequence, const C::SdoTransfer& transfer, uint64_t now) noexcept {
-    if (!occupied_ || record_->terminal || record_->plan.kind != RouteKind::SAVE || !work_ || !save_ ||
+    if (!occupied_ || record_->terminal || !isPersistence(record_->plan.kind) || !work_ || !save_ ||
         steps_[stepIndex_].kind != STEP_SAVE || !stepActive_)
         return false;
     const SequenceId own = axis().sequence();
@@ -1150,18 +1159,36 @@ void BenchRoute::serviceSave(uint64_t now) noexcept {
             return finish(RouteFailure::INVALIDATED, "session", now);
         L::PersistenceReview review; // No review guard: the result names all four in guardsOff.
         review.target = target;
-        review.kind = L::PersistenceKind::SAVE;
+        const bool restore = record_->plan.kind == RouteKind::RESTORE;
+        review.kind = restore ? L::PersistenceKind::FACTORY_RESTORE : L::PersistenceKind::SAVE;
+        if (restore) {
+            // The backup guard stays set. It names this node's backup only when every supported group was
+            // recorded in this route; otherwise the record is none and the library refuses before TX.
+            const PersistenceBackup& b = save_->backup[slot()];
+            review.guards = L::PERSISTENCE_GUARD_BACKUP;
+            review.backupRecord =
+                b.recordId == record_->plan.trial && b.groupsRead == BACKUP_GROUPS_SUPPORTED ? b.recordId : 0;
+            record_->backupRecord = b.recordId == record_->plan.trial ? b.recordId : 0;
+            record_->backupFields = b.fieldCount;
+            record_->backupGroups = b.groupsRead;
+            record_->backupUnknownGroups = b.groupsUnknown;
+            record_->backupUnknown = b.unknown;
+            record_->backupComplete = b.complete;
+        }
         L::ReadOptions options;
         options.queueTimeoutUs = ROUTE_QUEUE_US;
         options.responseTimeoutUs = ROUTE_RESPONSE_US;
-        const M::Status status = L::prepareSave(c, live, target, review, save_->prior, operation, record_->plan.trial,
-                                                now, deadline, options, SETTINGS_AGE_US);
+        const M::Status status =
+            restore ? L::prepareFactoryRestore(c, live, target, review, save_->prior, operation, record_->plan.trial,
+                                               now, deadline, options, SETTINGS_AGE_US)
+                    : L::prepareSave(c, live, target, review, save_->prior, operation, record_->plan.trial, now,
+                                     deadline, options, SETTINGS_AGE_US);
         if (!status) {
             record_->statusPresent = true;
             record_->statusCode = uint8_t(status.code);
             record_->statusDetail = status.detail;
             record_->statusMessage = status.msg ? status.msg : "";
-            return finish(RouteFailure::REFUSED, "save", now);
+            return finish(RouteFailure::REFUSED, restore ? "restore" : "save", now);
         }
         record_->savePrepared = true;
         record_->saveGuardsOff = c.guardsOff;
@@ -1239,17 +1266,17 @@ const char* BenchRoute::begin(const RoutePlan& plan, uint64_t now) noexcept {
                         1u, caps_.motionPerCase) ||
                    over(motionCases_[stopCase][index], stop, caps_.motionPerCase)))
         return "budget";
-    if (settings && plan.kind != RouteKind::SAVE && over(settingsCases_[settingsCase][index], 1u, caps_.settingsPerCase))
+    if (settings && !isPersistence(plan.kind) && over(settingsCases_[settingsCase][index], 1u, caps_.settingsPerCase))
         return "budget";
     // Saves have their own per-node cap (prompt 61): each admission may write 2300, whatever its route ends as.
-    if (plan.kind == RouteKind::SAVE && over(persistence_[index], 1u, caps_.persistencePerNode))
+    if (isPersistence(plan.kind) && over(persistence_[index], 1u, caps_.persistencePerNode))
         return "budget";
     // HOME keeps its input mapping, state read and request in RouteWork, as a settings route keeps its
     // prior; VELOCITY keeps its request there, off BenchRoute's own block. VELOCITY_TARGET needs none.
     if ((isSettings(plan.kind) || plan.kind == RouteKind::HOME || isVelocity(plan.kind)) && !work_)
         return "memory";
     // SAVE holds its reservation and binding in RouteWork, its reads and context in SaveWork.
-    if (plan.kind == RouteKind::SAVE && (!work_ || !save_))
+    if (isPersistence(plan.kind) && (!work_ || !save_))
         return "memory";
     if (terminalBound(plan) > ROUTE_TERMINALS)
         return "capacity";
@@ -1365,7 +1392,7 @@ const char* BenchRoute::begin(const RoutePlan& plan, uint64_t now) noexcept {
     }
     if (settings)
         ++settingsCases_[settingsCase][index];
-    if (plan.kind == RouteKind::SAVE)
+    if (isPersistence(plan.kind))
         ++persistence_[index];
     RouteRecord& r = *record_;
     r.plan = plan;
@@ -1462,6 +1489,10 @@ const char* BenchRoute::begin(const RoutePlan& plan, uint64_t now) noexcept {
     r.savePrepared = r.saveUncertain = false;
     r.save2300Present[0] = r.save2300Present[1] = false;
     r.save2300[0] = r.save2300[1] = 0;
+    r.backupRecord = 0;
+    r.backupFields = r.backupUnknown = 0;
+    r.backupGroups = r.backupUnknownGroups = 0;
+    r.backupComplete = false;
     r.saveState = r.saveOutcome = r.saveExecution = r.saveAttempts = r.saveGuardsOff = 0;
     r.velocityRequested = false;
     r.velocityRequestedUs = 0;
@@ -1643,6 +1674,19 @@ const char* BenchRoute::begin(const RoutePlan& plan, uint64_t now) noexcept {
                                 {STEP_SAVE, 0},
                                 {STEP_GROUP, uint8_t(L::DriverGroup::PERSISTENCE)},
                                 {STEP_END, 0}};
+    // Prompt 61: the backup's four groups first, then the restore's prerequisites as the save's (MOTION_PARAMETERS
+    // also completes the backup), 2300 before, the restore itself, and 2300 after an acknowledgement.
+    static const Step restore[] = {{STEP_GROUP, uint8_t(L::DriverGroup::DRIVER)},
+                                   {STEP_GROUP, uint8_t(L::DriverGroup::SOFT_LIMITS)},
+                                   {STEP_GROUP, uint8_t(L::DriverGroup::IO_INPUT_CONFIGURATION)},
+                                   {STEP_GROUP, uint8_t(L::DriverGroup::CONTROL)},
+                                   {STEP_IDENTITY, 0},
+                                   {STEP_STATE, STOP_STATE},
+                                   {STEP_GROUP, uint8_t(L::DriverGroup::MOTION_PARAMETERS)},
+                                   {STEP_GROUP, uint8_t(L::DriverGroup::PERSISTENCE)},
+                                   {STEP_SAVE, 0},
+                                   {STEP_GROUP, uint8_t(L::DriverGroup::PERSISTENCE)},
+                                   {STEP_END, 0}};
     static const Step positionChange[] = {{STEP_STATE, FULL}, {STEP_CHECK_POSITION, 0},
         {STEP_GROUP, uint8_t(L::DriverGroup::MOTION_PARAMETERS)}, {STEP_SINGLE, 1},
         {STEP_POSITION_WRITES, 0}, {STEP_OBSERVE, OBSERVE_BEFORE_CHANGE},
@@ -1652,8 +1696,8 @@ const char* BenchRoute::begin(const RoutePlan& plan, uint64_t now) noexcept {
                                   move,    history, quick, words,  position, limits, di3,       counter,  alarm,
                                   modeThree, velocity, home, velocityTarget, armMove, armVelocity, armWitness,
                                   subdivision, controlword, loop, modeProbe, positionChange, velocity, velocity,
-                                  armMovePair, armVelocityPair, save, release};
-    static_assert(sizeof tables / sizeof tables[0] == unsigned(RouteKind::RELEASE) + 1,
+                                  armMovePair, armVelocityPair, save, release, restore};
+    static_assert(sizeof tables / sizeof tables[0] == unsigned(RouteKind::RESTORE) + 1,
                   "one table per route");
     const Step* const moves[] = {move, moveRelative, moveObserved, moveRelativeObserved};
     steps_ = plan.kind == RouteKind::MOVE       ? moves[(plan.relativeBase ? 1 : 0) + (plan.observer ? 2 : 0)]
@@ -1859,7 +1903,7 @@ void BenchRoute::noteEnd(uint64_t now) noexcept {
         }
         settleSettings(now);
     }
-    if (p.kind == RouteKind::SAVE && save_ && record_->savePrepared && !pending_) {
+    if (isPersistence(p.kind) && save_ && record_->savePrepared && !pending_) {
         // A save the route left before its download is withdrawn locally, nothing sent; then its result.
         L::PersistenceContext& c = save_->persistence;
         if (c.state == L::PersistenceState::WRITING)
@@ -2615,7 +2659,7 @@ void BenchRoute::readDone(uint64_t now) noexcept {
             currentTarget(target) && L::getControl(context_, target, now, ROUTE_OPERATION_US, releaseLoop_).isOk();
         record_->releaseLoop = record_->releaseLoopPresent ? uint16_t(releaseLoop_.loopModeRaw) : 0;
     }
-    if (record_->plan.kind == RouteKind::SAVE && save_) {
+    if (isPersistence(record_->plan.kind) && save_) {
         // Each prerequisite as the library takes it: the identity and state reads whole, the group read.
         const uint8_t kind = steps_[stepIndex_].kind;
         if (kind == STEP_IDENTITY)
@@ -2630,8 +2674,23 @@ void BenchRoute::readDone(uint64_t now) noexcept {
                                               L::getDriver(context_, target, now, ROUTE_OPERATION_US, raw).isOk() &&
                                               raw.group == L::DriverGroup::PERSISTENCE;
             record_->save2300[which] = record_->save2300Present[which] ? raw.persistenceRaw : 0;
-        } else if (kind == STEP_GROUP)
-            save_->prior.configuration = context_;
+        } else if (kind == STEP_GROUP) {
+            const L::DriverGroup group = static_cast<L::DriverGroup>(steps_[stepIndex_].arg);
+            if (group == L::DriverGroup::MOTION_PARAMETERS)
+                save_->prior.configuration = context_;
+            // RESTORE: each typed group into this node's backup record, a fresh one per route, the trial its
+            // identity. A group the record refuses ends the route before the restore.
+            PersistenceBackup& b = save_->backup[slot()];
+            if (record_->plan.kind == RouteKind::RESTORE) {
+                if (b.recordId != record_->plan.trial)
+                    b = PersistenceBackup();
+                if (!currentTarget(target) ||
+                    !recordBackupGroup(b, record_->plan.trial, group, context_, target, now, ROUTE_OPERATION_US)) {
+                    finish(RouteFailure::CORRELATION, "backup", now);
+                    return;
+                }
+            }
+        }
     }
     if (steps_[stepIndex_].kind == STEP_PRIOR)
         work_->prior = context_; // Assigned in place: the next read reuses context_.
@@ -4633,8 +4692,8 @@ unsigned BenchRoute::summaryCount() const noexcept {
                      ? 5
                      : 3 + (r.plan.kind == RouteKind::IO_DI3);
     // SAVE: TRIAL_SAVE; RELEASE: TRIAL_RELEASE once requested.
-    if (r.plan.kind == RouteKind::SAVE)
-        count += 1;
+    if (isPersistence(r.plan.kind))
+        count += r.plan.kind == RouteKind::RESTORE ? 2 : 1; // RESTORE: TRIAL_RESTORE and TRIAL_BACKUP.
     if (r.releaseRequested)
         count += 1;
     // TRIAL_OBSERVER, its check and last reads, and TRIAL_NODES.
@@ -5040,15 +5099,21 @@ bool BenchRoute::formatSummary(unsigned index, char* out, size_t size) const noe
                    unsigned(c.monitorObservation.monitor), static_cast<long>(x.settledVelocity),
                    unsigned(x.decision.running), unsigned(x.decision.alarm), unsigned(x.decision.fault));
     }
-    if (p.kind == RouteKind::SAVE && !index--)
+    if (p.kind == RouteKind::RESTORE && !index--)
+        // The backup record the restore's guard named (prompt 61): its identity (0 when none was started), its
+        // fields and groups, the groups and the scope it lists as unknown, and its complete flag, always 0.
+        return put(out, size, "TRIAL_BACKUP record=%lu fields=%u groups=%04x unknownGroups=%04x unknown=%02x complete=%u\n",
+                   static_cast<unsigned long>(r.backupRecord), unsigned(r.backupFields), unsigned(r.backupGroups),
+                   unsigned(r.backupUnknownGroups), unsigned(r.backupUnknown), unsigned(r.backupComplete));
+    if (isPersistence(p.kind) && !index--)
         // The save's result: the context's state, outcome and execution, its one attempt, the guards it ran
         // without and its uncertainty; its download's raw terminal (outcome 255 while none settled); the
         // epochs and whether the owner and the session followed; the raw 2300 reads before the download and after
         // its acknowledgement, -1 when not held (prompt 61). An acknowledgement claims no durability.
         return put(out, size,
-                   "TRIAL_SAVE prepared=%u state=%u outcome=%u exec=%u attempts=%u guardsOff=%02x uncertain=%u "
+                   "%s prepared=%u state=%u outcome=%u exec=%u attempts=%u guardsOff=%02x uncertain=%u "
                    "written=%u wire=%u ack=%u abort=%08lx cfg0=%lu cfg1=%lu followed=%u r2300a=%ld r2300b=%ld\n",
-                   unsigned(r.savePrepared), unsigned(r.saveState), unsigned(r.saveOutcome), unsigned(r.saveExecution),
+                   p.kind == RouteKind::RESTORE ? "TRIAL_RESTORE" : "TRIAL_SAVE", unsigned(r.savePrepared), unsigned(r.saveState), unsigned(r.saveOutcome), unsigned(r.saveExecution),
                    unsigned(r.saveAttempts), unsigned(r.saveGuardsOff), unsigned(r.saveUncertain),
                    unsigned(r.probeWritten), r.probeWritten ? unsigned(r.probeOutcome) : 255u,
                    unsigned(r.probeAcknowledged), static_cast<unsigned long>(r.probeAbort),
