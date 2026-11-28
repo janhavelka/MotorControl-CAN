@@ -768,8 +768,8 @@ unsigned terminalBound(const RoutePlan& p) {
         // The full read, the one word, seven-field cycles, the final full read.
         return 9 + 1 + 7u * p.cycles + 9;
     case RouteKind::SAVE:
-        // Identity, STATUS and MONITORS, MOTION_PARAMETERS, then the one 2300 download.
-        return 9 + 5 + 3 + 1;
+        // Identity, STATUS and MONITORS, MOTION_PARAMETERS, the 2300 read, the one 2300 download, the 2300 read.
+        return 9 + 5 + 3 + 1 + 1 + 1;
     case RouteKind::RELEASE:
         // Identity, CONTROL, the full read, the one word, at most the stated seven-field cycles and one of
         // margin.
@@ -1168,12 +1168,16 @@ void BenchRoute::serviceSave(uint64_t now) noexcept {
         stepActive_ = true;
     }
     if (c.state != L::PersistenceState::WRITING) {
-        // Acknowledged is protocol success only; a refused or lost reply stays uncertain. Either way the route
-        // ends here; noteEnd records the result and the session follows the epoch.
-        if (c.state == L::PersistenceState::ACKNOWLEDGED)
-            nextStep(now);
-        else
-            finish(RouteFailure::SERVICE, c.uncertain ? "uncertain" : "save", now);
+        // Acknowledged is protocol success only; a refused or lost reply stays uncertain and ends the route here,
+        // where noteEnd records the result and the session follows the epoch. After an acknowledgement the owner
+        // and the session follow first, so that 2300 is read at the epoch the download advanced to.
+        if (c.state != L::PersistenceState::ACKNOWLEDGED)
+            return finish(RouteFailure::SERVICE, c.uncertain ? "uncertain" : "save", now);
+        record_->configurationAfter = uint32_t(w.binding.configurationGeneration);
+        record_->configurationFollowed = followConfiguration(now);
+        if (!record_->configurationFollowed)
+            return finish(RouteFailure::INVALIDATED, "follow", now);
+        nextStep(now);
         return;
     }
     L::PreparedRead next;
@@ -1235,7 +1239,10 @@ const char* BenchRoute::begin(const RoutePlan& plan, uint64_t now) noexcept {
                         1u, caps_.motionPerCase) ||
                    over(motionCases_[stopCase][index], stop, caps_.motionPerCase)))
         return "budget";
-    if (settings && over(settingsCases_[settingsCase][index], 1u, caps_.settingsPerCase))
+    if (settings && plan.kind != RouteKind::SAVE && over(settingsCases_[settingsCase][index], 1u, caps_.settingsPerCase))
+        return "budget";
+    // Saves have their own per-node cap (prompt 61): each admission may write 2300, whatever its route ends as.
+    if (plan.kind == RouteKind::SAVE && over(persistence_[index], 1u, caps_.persistencePerNode))
         return "budget";
     // HOME keeps its input mapping, state read and request in RouteWork, as a settings route keeps its
     // prior; VELOCITY keeps its request there, off BenchRoute's own block. VELOCITY_TARGET needs none.
@@ -1358,6 +1365,8 @@ const char* BenchRoute::begin(const RoutePlan& plan, uint64_t now) noexcept {
     }
     if (settings)
         ++settingsCases_[settingsCase][index];
+    if (plan.kind == RouteKind::SAVE)
+        ++persistence_[index];
     RouteRecord& r = *record_;
     r.plan = plan;
     r.failure = RouteFailure::NONE;
@@ -1451,6 +1460,8 @@ const char* BenchRoute::begin(const RoutePlan& plan, uint64_t now) noexcept {
     r.clearRequested = r.modeRequested = r.releaseRequested = r.releaseLoopPresent = false;
     r.releaseLoop = 0;
     r.savePrepared = r.saveUncertain = false;
+    r.save2300Present[0] = r.save2300Present[1] = false;
+    r.save2300[0] = r.save2300[1] = 0;
     r.saveState = r.saveOutcome = r.saveExecution = r.saveAttempts = r.saveGuardsOff = 0;
     r.velocityRequested = false;
     r.velocityRequestedUs = 0;
@@ -1623,11 +1634,14 @@ const char* BenchRoute::begin(const RoutePlan& plan, uint64_t now) noexcept {
                                    {STEP_GROUP, uint8_t(L::DriverGroup::CONTROL)},
                                    {STEP_STATE, FULL},
                                    {STEP_RELEASE, 0}};
-    // The save's prerequisites, each kept in SaveWork as its read completes, then the save itself.
+    // The save's prerequisites, each kept in SaveWork as its read completes, 2300 before, the save itself, and
+    // 2300 after an acknowledgement (prompt 61).
     static const Step save[] = {{STEP_IDENTITY, 0},
                                 {STEP_STATE, STOP_STATE},
                                 {STEP_GROUP, uint8_t(L::DriverGroup::MOTION_PARAMETERS)},
+                                {STEP_GROUP, uint8_t(L::DriverGroup::PERSISTENCE)},
                                 {STEP_SAVE, 0},
+                                {STEP_GROUP, uint8_t(L::DriverGroup::PERSISTENCE)},
                                 {STEP_END, 0}};
     static const Step positionChange[] = {{STEP_STATE, FULL}, {STEP_CHECK_POSITION, 0},
         {STEP_GROUP, uint8_t(L::DriverGroup::MOTION_PARAMETERS)}, {STEP_SINGLE, 1},
@@ -2608,7 +2622,15 @@ void BenchRoute::readDone(uint64_t now) noexcept {
             save_->prior.identity = context_.read;
         else if (kind == STEP_STATE)
             save_->prior.state = context_.read;
-        else if (kind == STEP_GROUP)
+        else if (kind == STEP_GROUP && steps_[stepIndex_].arg == uint8_t(L::DriverGroup::PERSISTENCE)) {
+            // 2300 before the save (0) or after its acknowledgement (1), raw; an unpublished read stays absent.
+            const unsigned which = record_->savePrepared ? 1 : 0;
+            L::DriverObservation raw;
+            record_->save2300Present[which] = currentTarget(target) &&
+                                              L::getDriver(context_, target, now, ROUTE_OPERATION_US, raw).isOk() &&
+                                              raw.group == L::DriverGroup::PERSISTENCE;
+            record_->save2300[which] = record_->save2300Present[which] ? raw.persistenceRaw : 0;
+        } else if (kind == STEP_GROUP)
             save_->prior.configuration = context_;
     }
     if (steps_[stepIndex_].kind == STEP_PRIOR)
@@ -5021,16 +5043,18 @@ bool BenchRoute::formatSummary(unsigned index, char* out, size_t size) const noe
     if (p.kind == RouteKind::SAVE && !index--)
         // The save's result: the context's state, outcome and execution, its one attempt, the guards it ran
         // without and its uncertainty; its download's raw terminal (outcome 255 while none settled); the
-        // epochs and whether the owner and the session followed. An acknowledgement claims no durability.
+        // epochs and whether the owner and the session followed; the raw 2300 reads before the download and after
+        // its acknowledgement, -1 when not held (prompt 61). An acknowledgement claims no durability.
         return put(out, size,
                    "TRIAL_SAVE prepared=%u state=%u outcome=%u exec=%u attempts=%u guardsOff=%02x uncertain=%u "
-                   "written=%u wire=%u ack=%u abort=%08lx cfg0=%lu cfg1=%lu followed=%u\n",
+                   "written=%u wire=%u ack=%u abort=%08lx cfg0=%lu cfg1=%lu followed=%u r2300a=%ld r2300b=%ld\n",
                    unsigned(r.savePrepared), unsigned(r.saveState), unsigned(r.saveOutcome), unsigned(r.saveExecution),
                    unsigned(r.saveAttempts), unsigned(r.saveGuardsOff), unsigned(r.saveUncertain),
                    unsigned(r.probeWritten), r.probeWritten ? unsigned(r.probeOutcome) : 255u,
                    unsigned(r.probeAcknowledged), static_cast<unsigned long>(r.probeAbort),
                    static_cast<unsigned long>(r.configurationBefore), static_cast<unsigned long>(r.configurationAfter),
-                   unsigned(r.configurationFollowed));
+                   unsigned(r.configurationFollowed), r.save2300Present[0] ? long(r.save2300[0]) : -1L,
+                   r.save2300Present[1] ? long(r.save2300[1]) : -1L);
     if (isSettings(p.kind)) {
         if (!index--)
             // The transaction's own result, the configuration epochs before and after, and whether the

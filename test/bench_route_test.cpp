@@ -5799,6 +5799,8 @@ void testRelease() {
 // Prompt 57: the explicit save route. Its identity, state and motion parameter reads, then one 2300=2 download
 // through the library's save with no review guard set; its acknowledgement claims no durability, and the epoch
 // advance is followed as after a settings write. A lost or refused reply stays uncertain and nothing is resent.
+// Prompt 61: 2300 is read before the download and after its acknowledgement, 2300=0 is never written, and the
+// saves are counted per node with the optional persistencePerNode cap, not settingsPerCase.
 void testSave() {
     scenario = "save";
     std::unique_ptr<Rig> r(new Rig);
@@ -5809,7 +5811,8 @@ void testSave() {
     CHECK(r->route.attachSaveWork(*save) && !r->route.attachSaveWork(*save) && r->route.saveWorkAttached());
     const uint32_t before = configuration(*r, 1);
     const E::RouteRecord& ok = r->run("s1,2,1");
-    CHECK(ok.failure == E::RouteFailure::NONE && ok.savePrepared && ok.terminalCount == 18 && ok.motionTotal == 0);
+    CHECK(ok.failure == E::RouteFailure::NONE && ok.savePrepared && ok.terminalCount == 20 && ok.motionTotal == 0);
+    CHECK(ok.save2300Present[0] && ok.save2300Present[1] && ok.save2300[0] == 0 && ok.save2300[1] == 0);
     CHECK(ok.saveState == uint8_t(L::PersistenceState::ACKNOWLEDGED) && ok.saveAttempts == 1 && !ok.saveUncertain &&
           ok.saveGuardsOff == L::PERSISTENCE_GUARDS_REVIEW &&
           ok.saveExecution == uint8_t(M::ActionExecution::ACKNOWLEDGED));
@@ -5818,8 +5821,11 @@ void testSave() {
     expectUploads(*r, at, 1, STOP_STATE, 5);
     const Address motion[] = {{0x6081, 0}, {0x6083, 0}, {0x6084, 0}};
     expectUploads(*r, at, 1, motion, 3);
+    const Address persistence[] = {{0x2300, 0}};
+    expectUploads(*r, at, 1, persistence, 1); // 2300 before the save, under its own one-use grant.
     const uint8_t write[8] = {0x2b, 0x00, 0x23, 0, 0x02, 0, 0, 0}; // 2300 = 2, save parameters.
     CHECK(download(r->driver.requests[at++], 1, write));
+    expectUploads(*r, at, 1, persistence, 1); // And after its acknowledgement, at the new epoch.
     CHECK(at == r->driver.requests.size() && r->downloadsFrom(0) == 1);
     CHECK(ok.configurationBefore == before && ok.configurationAfter == before + 1 && ok.configurationFollowed &&
           configuration(*r, 1) == before + 1 && r->one.isOpen());
@@ -5827,7 +5833,9 @@ void testSave() {
     CHECK(has(text, "route=save failure=0 "));
     CHECK(has(text, "TRIAL_PLAN route=save node=1 trial=2 attended=1\n"));
     CHECK(has(text, "TRIAL_SAVE prepared=1 state=2 ") && has(text, " attempts=1 guardsOff=0f uncertain=0 written=1 wire=0 ack=1 "));
+    CHECK(has(text, " followed=1 r2300a=0 r2300b=0\n"));
     r->release();
+    d.writesOnly = true; // The abort and the silence below meet the download only: 2300 before it still reads.
     for (unsigned lost = 0; lost < 2; ++lost) {
         // A lost reply and a refused one: one download each, uncertain, never resent.
         (lost ? d.silentIndex : d.abortIndex) = 0x2300;
@@ -5836,6 +5844,8 @@ void testSave() {
         CHECK(failed.failure == E::RouteFailure::SERVICE && std::strcmp(failed.why, "uncertain") == 0);
         CHECK(failed.saveUncertain && failed.saveAttempts == 1 &&
               failed.saveState == uint8_t(L::PersistenceState::FAILED));
+        // 2300 was read before the download; no read after a failed one, and the route ends there.
+        CHECK(failed.save2300Present[0] && !failed.save2300Present[1] && has(r->dump(), " r2300a=0 r2300b=-1\n"));
         r->turns(500);
         CHECK(r->downloadsFrom(first) == 1);
         (lost ? d.silentIndex : d.abortIndex) = 0;
@@ -5848,6 +5858,35 @@ void testSave() {
     const E::RouteRecord& running = r->run("s2,5,1");
     CHECK(running.failure == E::RouteFailure::REFUSED && std::strcmp(running.why, "save") == 0 &&
           running.statusPresent && r->downloadsFrom(first) == 0);
+    r->release();
+    // The per-node save cap (prompt 61): three admissions on node 1 so far. Set to 3 it refuses the fourth before
+    // anything is sent, whatever settingsPerCase says; cleared, the same save is admitted again.
+    CHECK(r->route.persistenceAdmissions(1) == 3 && r->route.persistenceAdmissions(2) == 1 &&
+          E::RouteCaps::campaign().persistencePerNode == 4);
+    E::RouteCaps caps;
+    caps.persistencePerNode = 3;
+    r->route.setCaps(caps);
+    size_t sent = r->driver.requests.size();
+    CHECK(std::strcmp(r->start("s1,6,1"), "budget") == 0 && r->driver.requests.size() == sent);
+    caps.persistencePerNode = 1; // Node 2 holds one admission: its next save is refused too.
+    r->route.setCaps(caps);
+    CHECK(std::strcmp(r->start("s2,7,1"), "budget") == 0 && r->driver.requests.size() == sent);
+    caps.persistencePerNode = 0;
+    caps.settingsPerCase = 1; // The settings cap no longer counts saves.
+    r->route.setCaps(caps);
+    r->driver.drives[1].monitor = uint16_t(r->driver.drives[1].monitor & ~L::MONITOR_RUNNING);
+    const E::RouteRecord& again = r->run("s2,8,1");
+    CHECK(again.failure == E::RouteFailure::NONE && again.saveAttempts == 1 && r->route.persistenceAdmissions(2) == 2);
+    r->release();
+    // Never a 2300=0 (no rearm is documented) and never a second download of one save: every 2300 download sent
+    // was 2, one per admitted save that reached its download.
+    unsigned saves = 0;
+    for (const M::Frame& f : r->driver.requests)
+        if ((f.data[0] & 0xe0) == 0x20 && f.data[1] == 0x00 && f.data[2] == 0x23 && f.data[3] == 0) {
+            CHECK(f.data[4] == 0x02 && f.data[5] == 0);
+            ++saves;
+        }
+    CHECK(saves == 4);
 }
 // The library's refusals send nothing; a drive that stores another value, a lost reply and an abort end the
 // route with the write's terminal and whatever readback arrived on record, and nothing is sent again.

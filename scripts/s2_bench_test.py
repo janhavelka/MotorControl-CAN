@@ -2955,7 +2955,7 @@ class BenchTest(unittest.TestCase):
             return ["--command", "save", "--node", node, "--trial", trial] + list(extra)
         args, fields = bench.arguments(BASE + save("--persistent") + LEDGER + ["--output", "x"])
         self.assertEqual(bench.encode(args.command, fields).decode("ascii"), signed("Ts1,40,1"))
-        self.assertEqual(bench.plan_bounds(args.command, fields), (9 + 5 + 3 + 1, 0))
+        self.assertEqual(bench.plan_bounds(args.command, fields), (9 + 5 + 3 + 1 + 1 + 1, 0))
         self.assertEqual(bench.motion_weight(args.command, fields), (0, 0))
         bench.check_bounds(args.command, fields)
         self.assertEqual(bench.TRIALS["save"][0], "s")
@@ -2986,6 +2986,26 @@ class BenchTest(unittest.TestCase):
                          [("TRIAL_PLAN", "parsed", {}), ("TRIAL_SAVE", "parsed", {})])
         self.assertEqual((lines[1].values["prepared"], lines[1].values["guardsOff"], lines[1].values["cfg1"]),
                          (1, 0x0f, 2))
+        # Prompt 61: the 2300 reads before and after, -1 when not held.
+        lines, _ = evidence.parse_bytes(
+            b"TRIAL_SAVE prepared=1 state=3 outcome=0 exec=1 attempts=1 guardsOff=0f uncertain=1 written=1 wire=2 "
+            b"ack=0 abort=00000000 cfg0=1 cfg1=2 followed=1 r2300a=0 r2300b=-1\n")
+        self.assertEqual((lines[0].status, lines[0].values["r2300a"], lines[0].values["r2300b"]), ("parsed", 0, -1))
+        # Saves are summed per node across runs from the ledger; --motion-caps refuses a fifth on a node, and the
+        # settings cap of three does not apply to saves.
+        def sent(trial, node):
+            return {"event": "send", "route": "s", "node": node, "trial": trial, "motion": 0, "stop": 0,
+                    "settings": 1, "line": bench.sign_line("Ts%d,%d,1" % (node, trial))}
+        campaign = bench.Campaign(self.ledger, False, True)
+        campaign.entries = [sent(trial, 1) for trial in range(1, 5)] + [sent(5, 2)]
+        self.assertEqual((campaign.saves(1), campaign.saves(2)), (4, 1))
+        with self.assertRaises(bench.Refused) as refused:
+            campaign.check("save", [1, 6, 1])
+        self.assertIn("4 saves on node 1, the cap is 4", str(refused.exception))
+        campaign.check("save", [2, 6, 1])
+        campaign.entries = campaign.entries[:3]
+        campaign.check("save", [1, 6, 1])  # Three saves: over the settings cap of three, under the save cap.
+        bench.Campaign(self.ledger, False, False).check("save", [1, 6, 1])  # Caps off: counted, never refused.
 
     def test_release_record_reads_through_the_evidence_parser(self):
         # The firmware's record lines as test/bench_route_test.cpp's fake prints them (never a drive's).

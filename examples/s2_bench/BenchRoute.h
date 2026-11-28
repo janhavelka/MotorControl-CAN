@@ -239,14 +239,16 @@
  *   never a standstill claim, never resent. Attended, the settings caps, no motion weight.
  * - SAVE, prompt 57: one explicit save parameters, prepareSave and its one 2300=2 download. A fresh identity
  *   read (1009/100A one byte), a STATUS and MONITORS read and a MOTION_PARAMETERS read (6081, 6083, 6084) as
- *   the save's prerequisites, kept in SaveWork, then the library's save on the session's reservation with no
- *   review guard set (the result's guardsOff names all four). The library refuses a running, alarmed or
- *   undocumented 2100 report. The download's notice advances the configuration epoch, and the owner and the
- *   session then follow as after a settings write. Its acknowledgement is protocol success only; a refused or
- *   lost reply stays uncertain and nothing is repeated. Persistent: COMMON forbids persistent changes while
+ *   the save's prerequisites, kept in SaveWork, then a 2300 read (DriverGroup::PERSISTENCE, its own one-use
+ *   grant; prompt 61), then the library's save on the session's reservation with no review guard set (the
+ *   result's guardsOff names all four). The library refuses a running, alarmed or undocumented 2100 report.
+ *   The download's notice advances the configuration epoch; after an acknowledgement the owner and the session
+ *   follow, as after a settings write, and 2300 is read once more at the new epoch. 2300=0 is never written: no
+ *   source documents a rearm. Its acknowledgement is protocol success only; a refused or lost reply stays
+ *   uncertain, ends the route without the second read, and nothing is repeated. Persistent: COMMON forbids persistent changes while
  *   the owner is away, so nobody runs it then, and the host runner has no command for it. Verification is the
- *   owner's power cycle and a later read (verifyPersistence), outside this route. Attended, the settings
- *   routes' caps, no motion weight.
+ *   owner's power cycle and a later read (verifyPersistence), outside this route. Attended, no motion weight;
+ *   capped per node by RouteCaps::persistencePerNode (prompt 61), not by settingsPerCase.
  * - ARM_MOVE and ARM_VELOCITY, the shared console's arming (BenchConsole.h). MOVE's identity read, full
  *   read (two for a relative base) and check against the host's reviewed start position, or VELOCITY's
  *   identity read, full read and released mode 3 check, exactly as those routes acquire them, then the
@@ -699,14 +701,21 @@ struct RouteCallbacks {
 struct RouteCaps {
     uint8_t motionTotal = 0;     ///< Motion admissions per boot, stops counted as above; 0 is off.
     uint8_t motionPerCase = 0;   ///< Motion admissions per route kind and node per boot; 0 is off.
-    /** Settings, HOME and VELOCITY_TARGET admissions per route kind and node per boot; 0 is off. */
+    /** Settings, HOME and VELOCITY_TARGET admissions per route kind and node per boot; 0 is off. SAVE is
+     * capped by persistencePerNode instead. */
     uint8_t settingsPerCase = 0;
-    /** @return Packet 22's attended-campaign caps: 12 motion admissions in all, 3 per route and node. */
+    /** SAVE admissions (each may write 2300) per node per boot; 0 is off (prompt 61, decision 2). Project
+     * policy against unknown flash endurance, never a manufacturer limit; the library keeps no count, and
+     * scripts/s2_bench.py sums the saves of every run from its ledger. */
+    uint8_t persistencePerNode = 0;
+    /** @return Packet 22's attended-campaign caps: 12 motion admissions in all, 3 per route and node, and
+     * prompt 61's 4 saves per node. */
     static RouteCaps campaign() noexcept {
         RouteCaps c;
         c.motionTotal = 12;
         c.motionPerCase = 3;
         c.settingsPerCase = 3;
+        c.persistencePerNode = 4;
         return c;
     }
 };
@@ -937,6 +946,9 @@ struct RouteRecord {
     uint8_t saveAttempts = 0;   ///< 0 before a possible TX, 1 after; never more.
     uint8_t saveGuardsOff = 0;  ///< PersistenceContext::guardsOff: the records the save ran without.
     bool saveUncertain = false; ///< Its effect is unconfirmed, as after a refused or lost reply.
+    /** SAVE: the 2300 reads, 0 before the download and 1 after its acknowledgement; false when not held. */
+    bool save2300Present[2] = {};
+    uint16_t save2300[2] = {}; ///< SAVE: the raw 2300 values of those reads, never completion evidence.
     uint8_t settingsState = 0;      ///< SettingsState at the record's end.
     uint8_t settingsOutcome = 0;    ///< ReadOutcome at the record's end.
     uint16_t settingsChanged = 0;   ///< Fields the candidate changed, by group position.
@@ -1193,6 +1205,10 @@ class BenchRoute {
     void setCaps(const RouteCaps& caps) noexcept { caps_ = caps; }
     /** @return The caps in force. */
     const RouteCaps& caps() const noexcept { return caps_; }
+    /** @param node 1..BENCH_NODES. @return SAVE admissions on that node this boot; 0 for another node. */
+    uint8_t persistenceAdmissions(uint8_t node) const noexcept {
+        return node >= 1 && node <= BENCH_NODES ? persistence_[node - 1] : 0;
+    }
     /** The last route's arming, while nothing has replaced its reads.
      * @param output Set on true. @return True after a successful arming terminal (isArming), until
      * the next admitted route or a closeSessions that closed a session. Sends nothing. */
@@ -1320,7 +1336,8 @@ class BenchRoute {
     // Attended admissions without motion weight per route (SETTINGS_2202, IO_DI3, HOME, VELOCITY_TARGET,
     // SUBDIVISION, LOOP) and node, then MODE_PROBE rows 5 + modeRaw.
     // MODE_PROBE has a separate bounded row per candidate, so one sweep need not reset the MCU.
-    uint8_t settingsCases_[17][BENCH_NODES] = {}; ///< Row 16: SAVE.
+    uint8_t settingsCases_[17][BENCH_NODES] = {}; ///< Row 16: SAVE, counted, never capped by settingsPerCase.
+    uint8_t persistence_[BENCH_NODES] = {};       ///< SAVE admissions per node, capped by persistencePerNode.
     // MOVE with an observer: node B's reads, apart from the route's own on node A.
     bool observerPending_ = false, observerActive_ = false;
     MotorControlCAN::CANOPEN::SdoTransfer observerExpected_;

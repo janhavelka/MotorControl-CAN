@@ -153,7 +153,10 @@ download (TRIAL_SAVE). Its acknowledgement claims no durability; nothing is rese
 stays uncertain. It changes the drive's stored parameters, so it requires --persistent, the operator's explicit
 statement that a persistent write is intended. The owner-absence rule of docs/prompts/COMMON.md (nothing
 persistent while nobody can reach the bench) is policy that the operator applies: this runner documents it and
-checks no date. It is attended and counted like the settings routes, three per node, with no motion weight.
+checks no date. It is attended, with no motion weight. 2300 is read before the download and again after its acknowledgement
+(TRIAL_SAVE r2300a, r2300b; -1 when not held); 2300=0 is never written. Saves are counted per node across every
+run of the campaign from its ledger (prompt 61): --motion-caps refuses a fifth save on a node
+(CAMPAIGN_SAVES_PER_NODE), as the firmware's RouteCaps::campaign() refuses a fifth per boot.
 
 loop (protocol 13, backlog S21) writes one volatile 2500 loop selector, --value 0 (noneffective), 1 (open loop) or
 2 (closed loop) (EN86/ZH86 p19), through the library's prepareControlSettings, like subdivision: a fresh 2500/2501
@@ -366,6 +369,10 @@ LOOP_RANGE = (0, 2)
 # per-boot caps (BenchRoute RouteCaps) are off by default too.
 CAMPAIGN_MOTION_TOTAL = 12
 CAMPAIGN_PER_CASE = 3
+# Prompt 61, decision 2: saves (2300 writes) per node across every run of a campaign, summed from the ledger's
+# send entries; RouteCaps::campaign() persistencePerNode is the same 4 per boot. Project policy against unknown
+# flash endurance, never a manufacturer limit; refused under --motion-caps, counted always.
+CAMPAIGN_SAVES_PER_NODE = 4
 SHAFT = {"FREE": 1, "HOLDING": 2}
 # The enable line's start field (BenchRoute.cpp START, EnableStart in Actions.h).
 ENABLE_STARTS = {"NO_MOTION_WRITE_RECORDED": 1, "RELEASED": 2}
@@ -787,7 +794,8 @@ def plan_bounds(command, fields):
     if command == "loop":
         return 2 + 5 + 1 + 2 + 2, 0  # CONTROL, STATUS and MONITORS, the 2500 write, the readback, CONTROL again.
     if command == "save":
-        return 9 + 5 + 3 + 1, 0  # Identity, STATUS and MONITORS, MOTION_PARAMETERS, the one 2300 download.
+        # Identity, STATUS and MONITORS, MOTION_PARAMETERS, 2300, the one 2300 download, 2300 (prompt 61).
+        return 9 + 5 + 3 + 1 + 1 + 1, 0
     if command == "motor-release":
         cycles, interval = fields[5:7]
         # Identity (prompt 57), CONTROL (2500, 2501), the full read, the one word, at most the stated
@@ -1159,7 +1167,10 @@ class Campaign:
             letter += str(fields[8])
         if not self.caps:
             return
-        if command in SETTINGS_ROUTES and cases[(letter, node)] + 1 > CAMPAIGN_PER_CASE:
+        if command == "save" and cases[(letter, node)] + 1 > CAMPAIGN_SAVES_PER_NODE:
+            raise Refused("the campaign holds %d saves on node %d, the cap is %d" %
+                          (cases[(letter, node)], node, CAMPAIGN_SAVES_PER_NODE))
+        if command in SETTINGS_ROUTES and command != "save" and cases[(letter, node)] + 1 > CAMPAIGN_PER_CASE:
             raise Refused("the campaign holds %d %s admissions on node %d, the cap is %d" %
                           (cases[(letter, node)], command, node, CAMPAIGN_PER_CASE))
         if not motion:
@@ -1173,6 +1184,10 @@ class Campaign:
         if stop and cases[("S", node)] + 1 > CAMPAIGN_PER_CASE:
             raise Refused("the planned stop would be stop admission %d on node %d, the cap is %d" %
                           (cases[("S", node)] + 1, node, CAMPAIGN_PER_CASE))
+
+    def saves(self, node):
+        """Saves sent to a node in every run of this campaign: each send entry may have written 2300."""
+        return self.counts()[1][("s", node)]
 
     def summary(self):
         total, cases = self.counts()

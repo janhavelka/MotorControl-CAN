@@ -174,6 +174,12 @@ struct Owner {
         fill(c.read, words, 3);
         return c;
     }
+    L::DriverContext group(L::DriverGroup which, const uint32_t* words, unsigned count) {
+        L::DriverContext c;
+        CHECK(L::prepareDriverRead(c, reservation.target, begin(), now, 5000, options(), which));
+        fill(c.read, words, count);
+        return c;
+    }
     C::SdoCompletion control() {
         C::SdoTransfer work;
         work.channel = reservation.target.channel;
@@ -364,9 +370,97 @@ void restoredAndPartial() {
                         unchanged.owner.now, noWork) && !noWork.ready);
 }
 } // namespace
+// Prompt 61, decision 3: the backup record before a factory restore lists what it did not read and is never
+// complete; after a restore the comparison re-applies only fields with a typed write that can name the
+// recorded value, reports every other change as changed and every field not read again as unknown.
+void backupRecordAndCompare() {
+    Owner owner;
+    const L::ReadTarget& target = owner.reservation.target;
+    const uint32_t driver[] = {0, 1000}, limits[] = {0, 2, uint32_t(-1000), 1000}, motion[] = {100, 200, 300},
+                   io[] = {0x0f, 0x0101, 1, 2, 3, 7, 8, 9, 10}, control[] = {2, 4000};
+    A::PersistenceBackup backup;
+    CHECK(!backup.recordId && !backup.complete && backup.unknown == A::BACKUP_UNKNOWN_ALL &&
+          backup.groupsUnknown == A::BACKUP_GROUPS_ALL);
+    const L::DriverContext d = owner.group(L::DriverGroup::DRIVER, driver, 2);
+    {
+        const Saved<A::PersistenceBackup> saved(backup);
+        CHECK(!A::recordBackupGroup(backup, 0, L::DriverGroup::DRIVER, d, target, owner.now, 5000));
+        CHECK(!A::recordBackupGroup(backup, 7, L::DriverGroup::HOMING, d, target, owner.now, 5000));
+        CHECK(!A::recordBackupGroup(backup, 7, L::DriverGroup::SOFT_LIMITS, d, target, owner.now, 5000));
+        saved.unchanged(backup);
+    }
+    CHECK(A::recordBackupGroup(backup, 7, L::DriverGroup::DRIVER, d, target, owner.now, 5000));
+    CHECK(backup.recordId == 7 && backup.fieldCount == 2 && !backup.complete);
+    {
+        const Saved<A::PersistenceBackup> saved(backup);
+        CHECK(!A::recordBackupGroup(backup, 7, L::DriverGroup::DRIVER, d, target, owner.now, 5000)); // Once.
+        CHECK(!A::recordBackupGroup(backup, 8, L::DriverGroup::DRIVER, d, target, owner.now, 5000)); // One identity.
+        saved.unchanged(backup);
+    }
+    // The read completes first: its publication time is the owner's clock after its last reply.
+    const auto rec = [&](A::PersistenceBackup& b, uint32_t id, L::DriverGroup g, const uint32_t* w, unsigned n) {
+        const L::DriverContext read = owner.group(g, w, n);
+        CHECK(A::recordBackupGroup(b, id, g, read, target, owner.now, 5000));
+    };
+    const auto all = [&](A::PersistenceBackup& b, uint32_t id, const uint32_t* l, const uint32_t* m, const uint32_t* i,
+                         bool withControl) {
+        rec(b, id, L::DriverGroup::SOFT_LIMITS, l, 4);
+        rec(b, id, L::DriverGroup::MOTION_PARAMETERS, m, 3);
+        rec(b, id, L::DriverGroup::IO_INPUT_CONFIGURATION, i, 9);
+        if (withControl)
+            rec(b, id, L::DriverGroup::CONTROL, control, 2);
+    };
+    all(backup, 7, limits, motion, io, true);
+    // Every supported group read, and still: the other groups, the complete persistent set, the factory values
+    // and every other object are listed unknown, and the record is never complete.
+    CHECK(backup.fieldCount == A::BACKUP_FIELDS && backup.groupsRead == A::BACKUP_GROUPS_SUPPORTED);
+    CHECK(backup.groupsUnknown == (A::BACKUP_GROUPS_ALL & ~A::BACKUP_GROUPS_SUPPORTED) && backup.groupsUnknown);
+    CHECK(!backup.complete && backup.unknown == A::BACKUP_UNKNOWN_ALL);
+    CHECK(backup.fields[1].index == 0x2201 && backup.fields[1].write == A::BackupWrite::SUBDIVISION);
+    CHECK(backup.fields[0].write == A::BackupWrite::NONE && backup.fields[3].write == A::BackupWrite::NONE); // 2200, 607D.
+    // After a restore: 2200 changed (no typed write), 2202, 6083 and DI3 changed (typed), CONTROL not read again.
+    A::PersistenceBackup after;
+    const uint32_t driverAfter[] = {1, 1000}, limitsAfter[] = {10, 2, uint32_t(-1000), 1000},
+                   motionAfter[] = {100, 250, 300}, ioAfter[] = {0x0f, 0x0101, 1, 2, 3, 0, 8, 9, 10};
+    rec(after, 9, L::DriverGroup::DRIVER, driverAfter, 2);
+    all(after, 9, limitsAfter, motionAfter, ioAfter, false);
+    A::BackupComparison comparison;
+    {
+        const Saved<A::BackupComparison> saved(comparison);
+        CHECK(!A::compareBackup(comparison, backup, backup)); // Two distinct records.
+        saved.unchanged(comparison);
+    }
+    CHECK(A::compareBackup(comparison, backup, after));
+    CHECK(comparison.fieldCount == A::BACKUP_FIELDS && comparison.changed == 1 && comparison.reapply == 3 &&
+          comparison.notReread == 2 && comparison.unchanged == 14);
+    CHECK(comparison.change[0] == A::BackupChange::CHANGED && comparison.change[2] == A::BackupChange::REAPPLY &&
+          comparison.change[7] == A::BackupChange::REAPPLY && comparison.change[14] == A::BackupChange::REAPPLY &&
+          comparison.change[18] == A::BackupChange::NOT_REREAD && comparison.change[19] == A::BackupChange::NOT_REREAD);
+    CHECK(!comparison.complete && comparison.unknown == A::BACKUP_UNKNOWN_ALL &&
+          comparison.groupsUnknown == backup.groupsUnknown);
+    A::BackupReapply reapply;
+    CHECK(A::prepareBackupReapply(reapply, backup, comparison));
+    CHECK(reapply.writes == (1u << unsigned(A::BackupWrite::MOTION) | 1u << unsigned(A::BackupWrite::SOFT_LIMIT) |
+                             1u << unsigned(A::BackupWrite::IO)));
+    CHECK(reapply.motion.positionSpeedRpm == 100 && reapply.motion.rampUpTimeMs == 200 &&
+          reapply.motion.rampDownTimeMs == 300 && reapply.softLimit.enable == L::SoftLimitEnable::LIMITS_OFF);
+    CHECK(reapply.io.invertedInputs == 0x0001 && reapply.io.functions[3] == L::InputFunction::USER0 &&
+          reapply.io.functions[0] == L::InputFunction::ORIGIN);
+    CHECK(reapply.subdivision.subdivisionRaw == 0 && reapply.control.loopMode == L::LoopMode::UNKNOWN); // None.
+    // A recorded undocumented DI code: no whole IO candidate exists, so a changed DI is CHANGED, never REAPPLY.
+    const uint32_t undocumented[] = {0x0f, 0x0101, 1, 2, 3, 0x0105, 8, 9, 10},
+                   changedDi0[] = {0x0f, 0x0101, 2, 2, 3, 0x0105, 8, 9, 10};
+    A::PersistenceBackup odd, oddAfter;
+    all(odd, 11, limits, motion, undocumented, false);
+    all(oddAfter, 12, limits, motion, changedDi0, false);
+    CHECK(A::compareBackup(comparison, odd, oddAfter) && comparison.changed == 1 && comparison.reapply == 0);
+    CHECK(A::prepareBackupReapply(reapply, odd, comparison) && reapply.writes == 0);
+    CHECK(!A::prepareBackupReapply(reapply, backup, comparison)); // Another backup's comparison.
+}
 int main() {
     captureValidation();
     preparationValidation();
     restoredAndPartial();
+    backupRecordAndCompare();
     std::printf("configuration restore: %u checks passed\n", checks);
 }

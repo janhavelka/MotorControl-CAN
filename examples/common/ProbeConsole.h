@@ -169,6 +169,14 @@ class ProbeConsole {
     /** Borrow an externally armed typed commissioning bridge; no review/grant is invented.
      * @param commissioning Stationary same-selected-axis bridge, outlives the console.
      * @return False unchanged for a different owner graph or replacement attachment. */
+    /** Set the optional per-node cap on the `persistence` route's save and restore commands (prompt 61,
+     * decision 2): project policy against unknown flash endurance, never a manufacturer limit. Counts made so
+     * far stay and are judged against the new cap from the next command on. @param perNode 0 turns it off. */
+    void setPersistenceCap(uint8_t perNode) noexcept { persistenceCap_ = perNode; }
+    /** @param node Server node 1..127. @return Save and restore commands admitted on it; 0 for another. */
+    uint32_t persistenceAttempts(unsigned node) const noexcept {
+        return node >= 1 && node <= 127 ? persistenceAttempts_[node] : 0;
+    }
     bool attachCommissioning(ProbeCommissioning& commissioning) noexcept {
         if ((commissioning_ && commissioning_ != &commissioning) ||
             !commissioning.usesOwner(owner_))
@@ -296,7 +304,10 @@ class ProbeConsole {
     ProbeDevice* device_ = nullptr;
     ProbeSettings* settings_ = nullptr;
     ProbeCommissioning* commissioning_ = nullptr;
-    uint32_t persistenceAttempts_ = 0; ///< Cumulative self-prepared save/restore commands of this object.
+    /** Save and restore commands this object admitted, per server node 1..127 (prompt 61): the cumulative
+     * attempt number of a self-prepared command. The library keeps no count. */
+    uint32_t persistenceAttempts_[128] = {};
+    uint8_t persistenceCap_ = 0; ///< Optional per-node cap on those commands; 0 is off (setPersistenceCap).
     ConsoleBusSource bus_;
     RecordStore recordStore_;
     /** `record show`'s canonical line, emitted after its reply as record_line parts of at most

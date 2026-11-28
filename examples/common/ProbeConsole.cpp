@@ -2672,6 +2672,16 @@ void ProbeConsole::dispatchDevice(const ConsoleLine& line, uint64_t now) noexcep
                 reject("without_backup_applies_to_a_console_prepared_restore");
                 return;
             }
+            // Prompt 61: counted per node, with the optional cap, before anything is prepared or sent.
+            const unsigned node = unsigned(commissioning_->target().channel.binding.endpoint.address);
+            if (node < 1 || node > 127) {
+                reject("persistence_node_unknown");
+                return;
+            }
+            if (persistenceCap_ && persistenceAttempts_[node] >= persistenceCap_) {
+                reject("persistence_cap_reached");
+                return;
+            }
             if (selfPrepared) {
                 // The library's default guards: none for a save, the backup guard for a restore, which this
                 // console cannot name a record for; `without-backup` clears that guard instead.
@@ -2686,13 +2696,15 @@ void ProbeConsole::dispatchDevice(const ConsoleLine& line, uint64_t now) noexcep
                     plan.reads.queueTimeoutUs = plan.reads.responseTimeoutUs = 100000;
                 plan.write.queueTimeoutUs = plan.write.responseTimeoutUs = 100000;
                 plan.maximumAgeUs = cutoff - now; // The command's own window, console policy.
-                plan.attemptOrdinal = ++persistenceAttempts_;
+                plan.attemptOrdinal = ++persistenceAttempts_[node];
                 status = commissioning_->startPersistence(plan, now, cutoff);
             } else if (!c || c->kind != expected) {
                 reject("wrong_armed_persistence_intent");
                 return;
             } else {
                 status = commissioning_->requestPersistence(now, cutoff);
+                if (status)
+                    ++persistenceAttempts_[node]; // The armed plan names its own attempt number.
             }
         } else {
             const auto* c = commissioning_->pdo();

@@ -312,7 +312,7 @@ GRAMMAR = (
     # acknowledgement claims no durability.
     Row("TRIAL_SAVE", "TRIAL_SAVE ", "summary",
         "prepared:b state:u outcome:u>saveOutcome exec:u attempts:u guardsOff:x uncertain:b>saveUncertain "
-        "written:b wire:u ack:b abort:x cfg0:u cfg1:u followed:b",
+        "written:b wire:u ack:b abort:x cfg0:u cfg1:u followed:b r2300a:i? r2300b:i?",
         signals=(("health", "saveOutcome"), ("health", "saveUncertain")), per_node=True),
     Row("TRIAL_EXTRA", "TRIAL_EXTRA ", "summary", "block:u fields:u 1001:x 603f:x 6064:i 606c:i"),
     Row("TRIAL_EVIDENCE", "TRIAL_EVIDENCE ", "summary",

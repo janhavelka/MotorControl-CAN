@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+### Persistence slice b1 (prompt 61, stage (b), 2026-11-28)
+
+- **Added (examples):** the backup record a factory restore's guard names (`ConfigurationRestore.h`,
+  `PersistenceBackup`, `recordBackupGroup`): the typed groups actually read (DRIVER, SOFT_LIMITS,
+  MOTION_PARAMETERS, IO_INPUT_CONFIGURATION, CONTROL), every other group in `groupsUnknown`, the complete
+  persistent set, the factory values and every other object in `unknown`, and `complete` always false; its
+  `recordId` is what `PersistenceReview::backupRecord` carries (the library is unchanged). `compareBackup`
+  compares it with the same groups read after a restore, field by field (`UNCHANGED`, `REAPPLY`, `CHANGED`,
+  `NOT_REREAD`), and `prepareBackupReapply` builds typed candidates only for fields with a typed write that can
+  name the recorded value; every other changed field stays reported as changed, nothing is written.
+- **Changed (examples):** saves are counted per node with an optional settable cap: `RouteCaps::persistencePerNode`
+  (`RouteCaps::campaign()` 4) replaces `settingsPerCase` for the S2 `Ts` route, and the console's `persistence`
+  route counts per node with `ProbeConsole::setPersistenceCap` (off by default). The library keeps no count.
+- **Changed (S2 bench):** `Ts` reads 2300 before its download and again after an acknowledgement, at the new
+  epoch (TRIAL_SAVE `r2300a`, `r2300b`, -1 when not held); 2300=0 is never written and nothing is retried.
+  `scripts/s2_bench.py` sums saves per node across runs from its ledger; `--motion-caps` refuses a fifth.
+- **Not yet:** the factory-restore bench route and its runner line (slice b1 remainder).
+
 ### Acceleration-form fix round (prompt 60, stage (c), 2026-11-27)
 
 - **Changed (API):** `LICHUAN_C::prepareAccelerationRamp` writes a `PreparedAccelerationRamp`: `time`, the former
